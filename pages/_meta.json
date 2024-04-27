@@ -1,0 +1,25 @@
+{
+  "index": "Study",
+  "-- Study": {
+    "type": "separator",
+    "title": "목차"
+  },
+  "Part1_Introduction": "",
+  "Part2_Type": "",
+  "Part3_Advanced Type": "",
+  "Part4_Extends & Narrowing": "",
+  "Part5_Type Utilize": "",
+  "Part6_TypeSciprt Compile": "",
+  "Part7_Asynchronous Call": "",
+  "Part8_JSX to TSX": "",
+  "Part9_Hooks": "",
+  "Part10_StateManagement": "",
+  "Part11_CSS-in-JS": "",
+  "Part12_TypeScript Project Management": "",
+  "Part13_TypeScript OOP": "",
+  "-- Presentaion": {
+    "type": "separator",
+    "title": "Presentation"
+  },
+  "presentation": "발표"
+}
