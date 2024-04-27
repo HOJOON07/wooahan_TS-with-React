@@ -2,7 +2,7 @@ import { useRouter } from "next/router";
 export default {
   logo: <strong>우아한 TypeScript with 리액트</strong>,
   project: {
-    link: "https://github.com/HOJOON07/react-deepdive-study",
+    link: "https://github.com/HOJOON07/wooahan_TS-with-React",
   },
   sidebar: {
     // 시이드바 설정 config
