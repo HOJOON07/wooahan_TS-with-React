@@ -1,5 +1,15 @@
--   [p.130] 방법 1, 방법 2 중 어떤 방법 ?
-    -   저렇게 menuList, specialMenuList, pakageMenuList로 API가 3개나 존재해야 할까 map도 3번 해야함
-    -   만약 한 화면에서 다 보여주는 거라면 하나로 받아와서 방법1을 쓰고 `!!gif && <Image />` 이런식으로 가는게 낫지 않을지 ..
--   전체적으로 예시 코드가 복잡한 느낌
-    -   뭔가 실무적인 예시를 들어주려고 하는 건 장점이지만 즉각적인 이해는 좀 어려운 것 같아요
+## 맵드 타입 - 수식어 제거
+- 기본 타입에 존재하던 readonly나 ? 앞에 `-`를 붙여주면 해당 수식어를 제거한 타입을 선언할 수 있음
+```tsx
+type ReadOnlyEx = {
+  readonly a: number;
+  readonly b: string;
+};
+
+type CreateMutable<Type> = {
+  -readonly [Property in keyof Type]: Type[Property];
+};
+
+type ResultType = CreateMutable<ReadOnlyEx>; // { a: number; b: string }
+```
+⇒ 타스 초보 입장에서 사실 처음 봐서 신기했음 'ㅅ' 
