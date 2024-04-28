@@ -1,0 +1,202 @@
+## any
+
+> 타입을 명시하지 않은 것과 같은 효과, 흔히 any타입을 변수에 할당하는 것은 지양해야 할 패턴으로 알려져 있다. 하지만 써야할 경우가 생긴다.
+
+1. 임시로 값을 지정할 때
+2. 어떤 값을 받아올지 또는 넘겨줄지 정할 수 없을 때
+3. 값을 예측할 수 없을 때 암묵적으로 사용
+
+## unknown
+
+> 무엇이 할당될지 아직 모르는 상태
+
+- 함수, 객체의 속성, 클래스 생성자 호출을 통한 인스턴스 생성 등 객체 내부에 접근하는 모든 시도에서 에러가 발생한다.
+
+## never
+
+> 모든 타입의 하위 타입이다.
+
+- 에러를 던지는 경우
+- 무한 루프를 도는 경우
+
+이약해보기
+101쪽 배열 요소 조회하는거 해보니까 안됨.
+
+# 타입 조합
+
+## 교차 타입
+
+- &를 사용해서 표기한다.
+  > 타입 C가 타입 A와 B의 교차 타입, 즉, A & B라면 타입 C는 타입 A와 B의 모든 멤버를 가지고 있는 타입이다.
+
+## 유니온 타입
+
+- |를 사용해서 표기한다.
+  > 교차 타입이 A와 B를 모두 만족하는 경우라면 유니온 타입은 타입 A 또는 타입 B 중 하나가 될 수 있는 타입이다.
+
+## 인덱스 시그니처
+
+- [key:string] : T 모양이다.
+
+```ts
+interface IndexSignature {
+  [key: string]: number | boolean;
+  name: string; //에러임!
+}
+```
+
+> 다른 속성을 추가로 명시하는것도 가능한데, 인덱스 시그니처에 포함되는 타입이어야 한다.
+
+## 인덱스드 엑세스
+
+> 다른 타입의 특정 속성이 가지는 타입을 조회하기 위해 사용된다.
+
+```ts
+type Example = {
+  a: number;
+  b: string;
+  c: boolean;
+};
+
+type IndexedAcces = Example["a"];
+type IndexedAcces = Example["keyof Example"];
+```
+
+> 배열의 요소 타입을 조회하기 위해 사용할 수도 있다.
+
+```ts
+const PromotionList = [
+  { type: "product", name: "chicken" },
+  { type: "product", name: "pizza" },
+  { type: "card", name: "cheer-up" },
+];
+
+// T는 반드시 배열 타입이어야 합니다.
+type ElementOf<T extends Array<any>> = T[number];
+// type ElementOf<T> = (typeof T)[number]; -> 책에서는 이거라고 적혀있는데 실제로 해보니 안됨.
+
+type PromotionItemType = ElementOf<typeof PromotionList>;
+```
+
+## 맵드 타입
+
+- 다른 타입을 기반으로 한 타입을 선언할 때 사용하는 문법
+
+```ts
+type Example = {
+  a: number;
+  b: string;
+  c: boolean;
+};
+
+type Subset<T> = {
+  [K in keyof T]?: T[K];
+};
+
+const aExample: Subset<Example> = { a: 3 };
+```
+
+#### 맵드 타입에서 readonly나 ?를 수식어로 사용한경우
+
+- "-"를 사용해서 수식어를 더해주거나 제거한 타입을 선언할 수 있다.
+
+```ts
+const aExample: Subset<Example> = { a: 3 };
+
+type ReadOnlyEx = {
+  readonly a: number;
+  readonly b: string;
+};
+
+type CreateMutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+
+type ResultType = CreateMutable<ReadOnlyEx>;
+
+type OptinalEx = {
+  a?: string;
+  b?: string;
+  c: string;
+};
+//결과
+type ResultType = {
+  a: number;
+  b: string;
+};
+
+type Concrete<T> = {
+  [P in keyof T]-?: T[P];
+};
+
+type OptionResult = Concrete<OptinalEx>;
+// 결과
+type OptionResult = {
+  a: string;
+  b: string;
+  c: string;
+};
+```
+
+## 템플릿 리터럴 타입
+
+> 자바스크립트의 템플릿 리터럴 문자열을 사용하여 문자열 리터럴 타입을 선언할 수 있는 문법이다.
+
+```ts
+type Stage = "init" | "select-image";
+
+type StageName = `${Stage}-stage`;
+```
+
+## 제네릭
+
+> 타입 간에 재사용성을 높이기 위해 사용하는 문법이다.
+
+```ts
+<T> 와 같이 꺾쇠괄호 내부에 정의된다.
+```
+
+#### 반드시 꺾쇠괄호안에 타입을 명시해야 하는 것은 아니다.
+
+```ts
+function exampleFunc<T>(arg: T): T[] {
+  return new Array(3).fill(arg);
+}
+```
+
+#### 파일 확장자가 .tsx일때는 화살표 함수에 제네릭을 사용하면 에러가 발생한다.
+
+## 제네릭 사용법
+
+### 1. 함수의 제네릭
+
+- 다양한 타입 값을 넣고 싶을 때
+
+```ts
+function ReadOnlyRepository<T>(
+  target: ObjectType<T> | EntitySchema<T> | string
+): Repository<T> {
+  return getConnection("ro").getRepository(target);
+}
+```
+
+### 2. 호출 시그니처의 제네릭
+
+### 3. 제네릭 클래스
+
+- 외부에서 입력된 타입을 클래스 내부에 적용할 수 있는 클래스이다.
+
+### 4. 제한된 제네릭
+
+- string 타입으로 제약하기
+
+```ts
+type ErrorRecord<Key extends string> = Exclude<Key, ErrorCodeType> extends never
+  ? Partial<Record<Key, boolean>>
+  : never;
+```
+
+### 5. 굳이 제네릭을 사용하지 않아도 되는 타입
+
+- any 사용
+- 가독성을 고려하지 않은 사용

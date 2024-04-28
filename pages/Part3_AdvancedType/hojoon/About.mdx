@@ -1,0 +1,130 @@
+# 이야기 해보기
+
+1. p.29 예전에 배민에서 백본.js를 사용했었다고 들었고 결제와 같은 서비스에 경우는 레거시가 많이 남아있다고 들었는데 이런 스토리가 있었다니 신기했습니다.
+
+2. 타입스크립트 첨 썼을때는 이게 좋은가? 의문을 가졌었음. JS로 잘 되던게 TS로 짤려고 하면 좀 코드 구조도 바꿔야 하고 그래야 구현이 되고 그랬는데 그냥 내가 TS 잘 몰라서 그랬던 거였음. 이번 스터디를 통해서 열심히 공부하고 잘 배워가자.
+
+3. 동적 타입 언어는 다 약타입 언어일꺼라고 생각했는데 파이썬이 강타입 언어라고 해서 신기했음. 찾아보니 이렇다고 한다.
+
+   > 강타입 언어 : 자료형이 맞지 않을 시에 에러 발생, 암묵적 변환을 지원하지 않음
+   > 파이썬은 동적타입이면서, 강타입 언어 입니다.
+
+4. 타입스크립트 그나마 유연하다고 적혀있는데.. 그런가??
+
+5. 생각해보니 타입스크립트를 사용하고나서는 자바스크립트를 사용할 때보다 버그를 찾고 오류를 고치는데 좀 쉬워진 느낌
+
+6. p.61 enum, const enum, 리버스 매핑, IIFE
+
+```js
+// transpile 이전
+enum COLOR {
+  red,
+  blue,
+  green
+}
+
+// transpile 이후
+var COLOR;
+(function (COLOR) {
+    COLOR[COLOR["red"] = 0] = "red";
+    COLOR[COLOR["blue"] = 1] = "blue";
+    COLOR[COLOR["green"] = 2] = "green";
+})(COLOR || (COLOR = {}));
+
+// 키와 밸류가 양방향으로 구현된다.
+var COLOR = {
+  red: 0,
+  blue: 1,
+  green: 2,
+  '0': 'red',
+  '1': 'blue',
+  '2': 'green'
+}
+```
+
+- const enum
+
+```js
+// transpile 이전
+const enum COLOR {
+  red,
+  blue,
+  green,
+}
+console.log(COLOR.red);
+console.log(COLOR.blue);
+console.log(COLOR.green);
+
+// transplie 이후
+console.log(0 /* red */);
+console.log(1 /* blue */);
+console.log(2 /* green */);
+```
+
+> 트랜스파일 이후 코드를 보면, 어떠한 객체 리터럴도 존재하지 않습니다. Typescript는 const enum의 멤버에 접근하는 코드를 각 멤버의 값으로 치환하지만, enum과 달리 선언된 const enum 객체를 최종 결과물에 포함시키지 않습니다.
+
+#### 3.4 버전 이후의 모던 타입스크립트에서부터는 as const 가 const enum의 역할을 완전히 대체하는 추세이다.
+
+### as const
+
+```ts
+let hojoon = "hojoon";
+
+const hojoon = "hojoon";
+```
+
+- hojoon이란 변수의 타입은 let은 string, const로 선언된 hojoon은 hojoon이라는 문자열 값 자체를 타입으로 가진다. 그렇기 때문에 const로 선언된 hojoon에 다른 문자열을 할당하면 에러가 발생한다.
+- 사실 let으로 선언해놓고 as const를 붙일 경우는 거의 없다. 그냥 애초에 const로 만들면 되기 때문. 그렇다면 as const를 사용하게 될 경우는 오브젝트의 밸류를 상수화 시키고 싶은 경우에 쓰면 된다.
+
+```ts
+const 1주차스터디출석부 {
+  first:"김호준",
+  second:"김은정",
+} as const
+```
+
+### 블로그 탐방하다가 알게 된 as const 예시
+
+```ts
+const myCar = {
+  numberOfTire: 4,
+  brand: "kia",
+  ev: "EV",
+};
+
+const myBike = {
+  numberOfTire: 2,
+  brand: "BMW",
+};
+
+type Transportation = typeof myCar | typeof myBike;
+
+const myTransportation = (tr: Transportation) => {
+  tr.numberOfTire === 4
+    ? console.log(`내 차 브랜드는 ${tr.brand} 그리고 ${tr.ev}차!`)
+    : console.log(`내 바이크는 ${tr.brand} 브랜드야`);
+};
+```
+
+- 이러면 오류가 나는데 numberOfTire에 as const붙여서 해결 할수 있음. 혹은 객체 전체에 as const를 줘도 되고,my bike에 as const만 줘도 해결 가능
+  - 이러한 것을 Discriminated Union(판별 유니온)이라고 하는데 하나만 판별할 수 있어도 나머지 경우를 고려할 수 있기 때문이다.
+
+7. enum 사용해본적이 없는거 같은데 다른분들은 혹시 사용해본 경험이 있으신지???
+
+8. 타입과 인터페이스 어떻게 사용하시는지? (주로 무엇을, 아니면 구분해서 사용할 때 어떤 기준을 두고 구분해서 사용하시는지??)
+   > 저의 경우에는 주로 인터페이스를 사용하고 복잡한 구조로 타입을 만들어야 할때? 만 타입을 사용했습니다.
+
+```ts
+import { Obj } from "@/types/static/obj";
+import { ValueOf } from "@/types/utility/value-of";
+
+export const getTypedValues = <T extends Obj>(obj: T) =>
+  Object.values(obj) as ValueOf<T>[];
+```
+
+9. p93 스프레드 연산자를 사용하여 타입 선언하기
+
+```ts
+const http: [number, string, ...string[]] = [400, "adsad", "adasda", "adasda"];
+yhjm;
+```

@@ -1,0 +1,88 @@
+# 타입 확장하기
+
+> 타입 확장은 기존 타입을 사용해서 새로운 타입을 정의하는 것을 말한다.
+
+- 가장 큰 장점은 코드 중복을 줄일 수 있다.
+
+#### 타입스크립트의 타입을 속성의 집합이 아니라 값의 집합이라고 생각해야 유니온 타입이 합집합이라는 개념을 이해할 수 있다.
+
+## 유니온과 교차 타입
+
+- 합친다는 관점에서는 같지만 교차는 단일 타입이 된다.(교집합)
+  > 교차 타입은 합친 집합이 가진 속성을 모두 만족하는 교집합하는 값의 타입이라고 해석해야 한다.
+
+### extends를 사용한 교차 타입
+
+- 거의 비슷하게 동작한다.
+
+#### 주의할 점
+
+> 이미 가지고 있는 속성을 다른 타입으로 확장하면 타입이 호환되지 않는다고 에러가 발생함.
+> 같은 경우에 type키워드를 써서 교차(&)를 쓰면 그 속성은 never가 된다.
+
+```ts
+interface a {
+  tip: string;
+}
+
+interface b extends a {
+  tip: number;
+  //에러임
+}
+
+type a = {
+  tip: string;
+};
+
+type b = a & {
+  tip: numbers;
+  // never임.
+};
+```
+
+## 타입 가드
+
+- 명시적인 타입 추론이 가능해지고, 타입 안정성을 높일 수 있다.
+
+### if문을 사용할 수 없는 이유
+
+> 컴파일 시 타입 정보는 모두 제거되어 런타임에 존재하지 않기 때문에 타입을 사용하여 조건을 만들 수 없다.
+> 그렇기 때문에 타입을 추론하도록 유도하면서 런타임에서도 유효한 방법이 필요하다.
+
+### 자바스크립트 연사자를 활용한 타입 가드
+
+- typeof
+  - 원시 타입을 판별
+- instanceof
+  - 인스턴스화된 객체 타입을 판별
+- in
+
+```ts
+interface Range {
+  start: Date;
+  end: Date;
+}
+
+interface DatePickerProps {
+  selectedDates?: Date | Range;
+}
+
+export function convertToRange(selected?: Date | Range): Range | undefined {
+  return selected instanceof Date
+    ? { start: selected, end: selected }
+    : selected;
+}
+```
+
+### 사용자 정의 타입 가드
+
+- is 연산자로 사용자 정의 타입 가드 만들기.
+  - A(매개변수) is B(타입) 형식
+
+### 타입 좁히기 (식별 유니온)
+
+- 구분할 수 있는 판별자를 달아주자.
+
+### 타입 분기 유지하기 (Exhaustiveness Checking)
+
+- 분기처리를 강제 한다(if문 까먹지 않도록)
