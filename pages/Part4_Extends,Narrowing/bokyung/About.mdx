@@ -1,1 +1,57 @@
-## About
+## 타입스크립트에서 집합 개념...?
+
+| 타입스크립트의 타입을 속성의 집합이 아니라, 값의 집합으로 이해해야 한다.
+
+- 무슨 말일까
+- [집합의 관점에서 타입스크립트 바라보기 – 화해 블로그 | 기술 블로그](https://blog.hwahae.co.kr/all/tech/9954)
+
+
+## (추가) 교차 타입
+- 공통된 속성은 좁혀지거나 아예 호환되지 않으면 never가 된다. 
+```tsx
+type IdType = string | number;
+type Numeric = number | boolean;
+
+type Univeral = IdType & Numeric; // 두 타입을 모두 만족하는 경우인 number가 된다
+```
+```tsx
+type BaseCartItem = {
+    id: number;
+    type: string;
+    ...
+}
+
+type SpecialCartItem = BaseCartItem & {
+    type: 'Special'; // 'Special'로 좁혀진다.
+}
+```
+```tsx
+type DeliveryTip = {
+  tip: number;
+  };
+
+type Filter = DeliveryTip & {
+  tip: string; // 에러는 발생하지 않고 Filter의 tip 속성은 never가 된다.
+};
+```
+
+## `exhaustiveCheck`
+
+모든 케이스에 대한 타입 분기 처리를 해주지 않았을 때, 컴파일타임 에러가 발생하게 하기
+
+```tsx
+type ProductPrice = “10000” | “20000” | “5000”;
+
+const getProductName = (productPrice: ProductPrice): string => {
+  if (productPrice === “10000”) return “배민상품권 1만 원”;
+  if (productPrice === “20000”) return “배민상품권 2만 원”;
+  // if (productPrice === “5000”) return “배민상품권 5천 원”;
+  else {
+    exhaustiveCheck(productPrice); // Error: Argument of type ‘string’ is not assignable to parameter of type ‘never’
+    return “배민상품권”;
+  }
+};
+
+const exhaustiveCheck = (param: never) => {
+  throw new Error(“type error!”);
+};
