@@ -1,2 +1,21 @@
 ## enum, const enum, 리버스 매핑
 
+## 인덱스드 엑세스 타입 예제 코드 에러?
+```tsx
+const PromotionList = [
+  { type: "product", name: "chicken" },
+  { type: "product", name: "pizza" },
+  { type: "card", name: "chee-up" },
+];
+
+type ElementOf<T> = (typeof T)[number];
+
+// type PromotionItemType = { type: string; name: string }
+type PromotionItemType = ElementOf<PromotionList>;
+```
+- (추가) 
+    ```tsx
+      type ElementOf<T extends Array<unknow>> = (typeof T)[number];
+      
+      type PromotionItemType = ElementOf<typeof PromotionList>;
+    ```
