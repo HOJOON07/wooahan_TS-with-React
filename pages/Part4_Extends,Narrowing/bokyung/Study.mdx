@@ -1,1 +1,250 @@
-## Study
+# 4장. 타입 확장하기/좁히기
+
+# 4.1 타입 확장하기
+
+기존 타입을 사용해서 새로운 타입을 정의하는 것
+
+interface, type 키워드를 사용해서 타입을 정의하고,
+extends, 교차 타입, 유니온 타입을 사용하여 타입을 확장한다.
+
+### 1. 타입 확장의 장점
+
+코드 중복 제거, 명시적인 코드 작성, 확장성
+
+```tsx
+// interface
+interface BaseMenuItem { 
+	... 
+}
+interface BaseCartItem extends BaseMenuItem {
+	quantity: number;
+}
+interface EditableCartItem extends BaseCartItem {
+	isSoldout: boolean;
+}
+interface EventCartItem extends BaseCartItem {
+	orderable: boolean;
+}
+
+// type
+type BaseMenuItem = {
+	...
+}
+type BaseCartItem = {
+	quantity: number;
+} & BaseMenuItem
+```
+
+### 2. 유니온 타입 (|)
+
+2개 이상의 타입을 조합하여 사용하는 방법
+
+합집합
+
+```tsx
+// type에만 사용 가능
+type MyUnion = A | B;
+// MyUnion은 타입 A와 B의 합집합
+```
+
+집합 A의 모든 원소는 집합 MyUnion의 원소, 집합 B의 모든 원소도 집합 MyUnion의 원소
+
+유니온 타입으로 선언된 값(MyUnion)은 유니온 타입에 포함된 모든 타입이 “공통”으로 갖고 있는 속성에만 접근할 수 있다. 즉 유니온 타입은 A 또는 B 타입에 해당할 뿐이지  A이면서 B인 것은 아니다.
+
+### 3. 교차 타입, 인터섹션 타입 (&)
+
+A와 B 타입을 합쳐 모든 속성을 가진 단일 타입이 된다.
+
+교집합
+
+```tsx
+type MyUnion = A & B;
+// MyUnion은 타입 A와 B의 교집합
+```
+
+집합 MyUnion의 원소는 집합 A의 원소이자 집합 B의 원소
+
+타입스크립트의 타입을 속성의 집합이 아니라, 값의 집합으로 이해해야 한다.
+
+- 타입이 서로 호환되지 않는 경우
+    
+    ```tsx
+    type IdType = string | number;
+    type Numeric = number | boolean;
+    
+    type Universal = IdType & Numeric // number
+    ```
+    
+
+[집합의 관점에서 타입스크립트 바라보기 – 화해 블로그 | 기술 블로그](https://blog.hwahae.co.kr/all/tech/9954)
+
+### 4. extends와 교차 타입
+
+상응하지 않음
+
+```tsx
+interface DeliveryTip {
+  tip: number;
+  }
+
+interface Filter extends DeliveryTip {
+  tip: string;
+  // Interface ‘Filter’ incorrectly extends interface ‘DeliveryTip’
+  // Types of property ‘tip’ are incompatible
+  // Type ‘string’ is not assignable to type ‘number’
+}
+```
+
+```tsx
+type DeliveryTip = {
+  tip: number;
+  };
+
+type Filter = DeliveryTip & {
+  tip: string;
+};
+
+// 에러는 발생하지 않고 Filter의 tip 속성은 never가 된다.
+```
+
+### 5. 배달의 민족 메뉴 시스템에 타입 확장 적용하기
+
+# 4.2 타입 좁히기 - 타입 가드
+
+변수 또는 표현식의 타입 범위를 더 작은 범위로 좁혀나가는 과정
+
+더 정확하고 명시적인 타입 추론 가능, 복잡한 타입을 작은 범위로 축소하여 타입 안정성 높임
+
+### 1. 타입 가드에 따라 분기 처리하기
+
+조건문, 타입 가드 
+
+타입 가드는 “런타임”에 조건문을 사용하여 타입을 검사하고 타입 범위를 좁혀주는 기능
+
+- 자바스크립트 연산자를 사용한 타입 가드
+    - instanceof
+    - typeof
+    - in
+- 사용자 정의 타입 가드: wlrwjq wlwjd
+
+### 2. 원시 타입을 추론할 때: typeof 연산자 활용하기
+
+null, 배열 타입 등이 object 타입으로 판별되는 등 복잡한 타입을 검증하기에는 한계가 있다. 따라서 주로 원시 타입을 좁히는 용도로만 사용할 것을 권장한다.
+
+- string, number, boolean, undefined, object, function, bigint, symbol
+
+### 3. 인스턴스화된 객체 타입을 판별할 때: instanceof 연산자 활용하기
+
+```tsx
+A instanceof B 
+```
+
+A의 프로토타입 체인에 생성자 B가 존재하는지 검사
+
+A의 프로토타입 속성 변화에 따라 결과가 달라질 수 있다는 점 유의 …?
+
+### 4. 객체의 속성이 있는지 없는지에 따른 구분: in 연산자 활용하기
+
+```tsx
+A in B
+```
+
+A라는 속성이 B 객체에 존재하는지 검사
+
+프로토타입 체인으로 접근할 수 있는 속성이면 true
+
+얼리리턴
+
+### 5. is 연산자로 사용자 정의 타입 가드 만들어 활용하기
+
+반환 타입이 타입 명제(type predicates)인 함수를 정의하여 사용
+
+```tsx
+A is B
+```
+
+A는 매개변수 이름, B는 타입
+
+> 타입 명제: 함수의 반환 타입에 대한 타입 가드를 수행하기 위해 사용되는 특별한 형태의 함수
+> 
+
+```tsx
+const isDestinationCode = (x: string): x is DestinationCode => destinationCodeList.includes(x);
+
+const getAvailableDestinationNameList = async (): Promise<DestinationName[]> => {
+  const data = await AxiosRequest<string[]>(“get”, “.../destinations”);
+  const destinationNames: DestinationName[] = [];
+  data?.forEach((str) => {
+  if (isDestinationCode(str)) {
+    destinationNames.push(DestinationNameSet[str]);
+    /*
+    isDestinationCode의 반환 값에 is를 사용하지 않고 boolean이라고 한다면 다음 에러가
+    발생한다
+    - Element implicitly has an ‘any’ type because expression of type ‘string’
+    can’t be used to index type ‘Record<”MESSAGE_PLATFORM” | “COUPON_PLATFORM” | “BRAZE”,
+    “통합메시지플랫폼” | “쿠폰대장간” | “braze”>’
+    */
+    }
+  });
+  return destinationNames;
+};
+```
+
+`x is DestinationCode`와 `boolean`을 반환하는 것과 차이
+
+→ 타입스크립트는 isDestinationCode 내부의 Array.includes()를 해석해 타입 추론을 할 수 없다. if문 스코프의 str 타입을 좁히지 못하고 string으로만 추론한다. destinationNames의 타입은 destinationNames[]이기 때문에 string 타입의 str을 push할 수 없다는 에러가 발생한다. 
+
+# 4.3 타입 좁히기 - 식별할 수 있는 유니온(Discriminated Unions)
+
+태그된 유니온(tagged Union)으로도 불리는 식별할 수 있는 유니온(Discriminated Unions)은 타입 좁히기에 널리 사용되는 방식이다.
+
+### 1. 에러 정의하기
+
+### 2. 식별할 수 있는 유니온
+
+각 타입이 비슷한 구조를 가지지만 서로 호한되지 않도록 만들어주기 위해서 타입들이 서로 포함 관계를 가지지 않도록 정의해야 한다.
+
+식별할 수 있는 유니온이란 타입 간의 구조 호환을 막기 위해 타입마다 구분할 수 있는 판별자를 달아주어 포함 관계를 제거하는 것이다. 
+
+### 3. 식별할 수 있는 유니온의 판별자 선정
+
+유닛 타입으로 선언되어야 정상적으로 동작한다.
+
+유닛 타입은 다른 타입으로 쪼개지지 않고 오직 하나의 정확한 값을 가지는 타입을 말한다. 
+
+- 리터럴 타입이어야 한다.
+    - null, undefined, 리터럴 타입을 비롯해 true, 1 등 정확한 값을 나타내는 타입
+- 판별자로 선정한 값에 적어도 하나 이상의 유닛 타입이 포함되어야 하며, 인스턴스화 할 수 있는 타입은 포함되지 않아야 한다.
+    - 다양한 타입을 할당할 수 잇는 void, string, number같은 타입은 적합하지 않다.
+
+# 4.4 Exhaustiveness Checking으로 정확한 타입 분기 유지하기
+
+Exhaustiveness: 철저함, 완전함
+
+모든 케이스에 대해 철저하게 타입을 검사하는 것
+
+### 1. 상품권
+
+상품권 가격에 따라 상품권 이름을 반환해주는 함수 
+
+```tsx
+type ProductPrice = “10000” | “20000” | “5000”;
+
+const getProductName = (productPrice: ProductPrice): string => {
+  if (productPrice === “10000”) return “배민상품권 1만 원”;
+  if (productPrice === “20000”) return “배민상품권 2만 원”;
+  // if (productPrice === “5000”) return “배민상품권 5천 원”;
+  else {
+    exhaustiveCheck(productPrice); // Error: Argument of type ‘string’ is not assignable to parameter of type ‘never’
+    return “배민상품권”;
+  }
+};
+
+const exhaustiveCheck = (param: never) => {
+  throw new Error(“type error!”);
+};
+/** 매개변수가 never, 즉 매개변수로 그 어떤 값도 받을 수 없으며 만일 값이 들어온다면 에러를 내뱉는다.
+*/
+```
+
+모든 케이스에 대한 타입 분기 처리를 해주지 않았을 때, 컴파일타임 에러가 발생하게 하는 것
