@@ -1,1 +1,52 @@
-## About
+# About
+
+## 160p 예제
+
+SubMenu의 name 리터럴을 유니온으로 갖는 타입을 추출하려고 하는 것 같다.
+예제를 따라가면서 해봤는데, 리터럴 타입으로 추론이 되지 않았었다.
+이유는 다음과 같다.
+
+```ts
+// 처음 예시를 들때 menuList에서는 타입을 할당하고, 값을 할당하였다.
+export type MenuItem = MainMenu | SubMenu
+
+export const menuList: MenuItem[] = [
+  {
+    name: '계정 관리',
+    subMenus: [...]
+  }
+]
+
+// 위 상태를 유지한채로 예시를 따라가다보니 아래와 같이 as const를 붙였었는데
+// 이미 MenuItem[]으로 타입이 할당되었기 때문에 리터럴 타입으로 추론하지 않는다.
+export const menuList: MenuItem[] = [
+  //...
+] as const // MenuItem[]
+
+
+// 적절히 리터럴 타입으로 추론하기 위해서 타입 할당된 부분을 제거한채로 as const를 붙여주어야 한다.
+export const menuList= [
+  //...
+] as const
+/*
+  const menuList: readonly [{
+    readonly name: "계정관리";
+    readonly subMenus: readonly [{
+        readonly name: "기기 내역 관리";
+        readonly path: "device-history";
+    }, {
+        readonly name: "헬멧 인증 관리";
+        readonly path: "helmet-certification";
+    }];
+  }]
+*/
+```
+
+위와 같이 `MenuItem[]` 타입을 할당하지 않은채로 `as const`를 붙여주고 실행하면 정상적으로 리터럴 유니온으로 추론이 된다.
+
+```ts
+type PermissionNames = UnpackMenuNames<typeof menuList>;
+// '기기 내역 관리' | '헬멧 인증 관리' | '운행 관리'
+```
+
+참고로 예제에서 [기기 내역 관리,헬멧 인증 관리, 운행 관리] 이렇게 나온다고 주석처리 했는데, 배열로 나오는건 아니다.
