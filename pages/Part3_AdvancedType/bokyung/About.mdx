@@ -1,6 +1,21 @@
--   [p.110] useSelectPagination 보니까 커스텀 훅의 파라미터 같은데 여기에 Props라는 키워드 쓰는거에 대해 어떻게 생각하시나요?
-    -   컴포넌트와 분리하기 위해 Params 라는 키워드를 쓰는 것을 선호합니다.
-    -   sortAtom 왜 한줄 안띄었을까요 안그래도 가독성 난리났는데.. 색깔좀 넣어주면 안되나
-    -   구체 타입이 정확히 뭐에요?
-        -   검색하니깐 자바 얘기만 주구장창 ..
-    -   `.map(el => ..)` 이것도 el을 해당 item의 이름으로 쓰는게 바람직한 것처럼 제네릭도 뭔가 T보다 네이밍이 들어가는게 더 좋은 것 같습니다. -> 유독 제네릭만 T를 쓰는 관습이 더 강한 느낌 ..?
+## enum, const enum, 리버스 매핑
+
+## 인덱스드 엑세스 타입 예제 코드 에러?
+```tsx
+const PromotionList = [
+  { type: "product", name: "chicken" },
+  { type: "product", name: "pizza" },
+  { type: "card", name: "chee-up" },
+];
+
+type ElementOf<T> = (typeof T)[number];
+
+// type PromotionItemType = { type: string; name: string }
+type PromotionItemType = ElementOf<PromotionList>;
+```
+- (추가) 
+    ```tsx
+      type ElementOf<T extends Array<unknow>> = (typeof T)[number];
+      
+      type PromotionItemType = ElementOf<typeof PromotionList>;
+    ```
