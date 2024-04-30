@@ -46,4 +46,234 @@ type Direction = Vertical | `${Vertical}${Capitalize<Horizon>}`
 
 - 타입스크립트 컴파일러가 유니온을 추론하는 데 시간이 오래 걸리면 비효율적이기 때문에 타입스크립트가 타입을 추론하지 않고 에러를 내뱉을 때가 있다.
 
+
 ## 5.3 커스텀 유틸리티 타입 활용하기
+
+### 1. 유틸리티 함수를 활용해 styled-components의 중복 타입 선언 피하기
+
+### 2. PickOne 유틸리티 함수
+
+#### 유니온의 합집합 특성으로 card, account 속성을 모두 가진 객체도 허용되는 문제가 발생한다.
+
+```tsx
+type Card = {
+    card: string;
+}
+type Account = {
+    account: string;
+}
+
+function withdraw(type: Card | Account){
+    console.log(type) // {card: 'hyundai', account: 'hana'}
+}
+// 다음과 같인 card, account 속성이 모두 포함되어도 에러가 나지 않는다. 
+// 유니온은 합집합이 되기 때문이다.
+withdraw({card: 'hyundai', account: 'hana'}); 
+
+// 참고.
+// function withdraw2(type: Card | Account){
+//     // 'Card' 형식에 'account' 속성이 없습니다.ts(2339)
+//     // 공통 속성에만 접근이 가능하다.
+//     console.log(type.account) 
+// }
+// withdraw2({card: 'hyundai'}); 
+```
+
+**#### 식별할 수 있는 유니온**으로 객체 타입을 유니온으로 받기 → 일일이 type을 다 넣어줘야 하는 불편함
+
+```tsx
+type Card = {
+		type: 'card';
+    card: string;
+}
+type Account = {
+	  type: 'account';
+    account: string;
+}
+
+withdraw({type: 'card', card: 'hyundai'}); 
+withdraw({type: 'account', account: 'hana'}); 
+```
+
+#### PickOne 커스텀 유틸리티 타입 구현하기
+
+선택하고자 하는 하나의 속성을 제외한 나머지 값을 옵셔널 타입 + undefined로 설정하면 원하고자 하는 속성만 받도록 구현할 수 있다.
+
+```tsx
+type One<T> = { [P in keyof T]: Record<P, T[P]> }[keyof T];
+
+/* T는 객체로 가정
+- 1) [P in keyof T]에서 P는 T객체의 키값
+- 2) Record<P, T[P]>는 P 타입을 키로 가지고, value는 P를 키로 둔 T 객체의 값의 레코드 타입
+- 3) 따라서 { [P in keyof T]: Record<P, T[P]> }에서 키는 T 객체의 키 모음, value는 해당 키의 원본 객체 T
+- 4) 3번 타입에서 다시 [keyof T]의 키값으로 접근하기 때문에 최종 결과는 전달받은 T와 같다.
+*/
+
+/*
+* type Card = { card: string };
+* const one: One<Card> = { card: 'hyundai" };
+*
+* 3) { card: { card: 'hyundai" } }
+* 4) { card: 'hyundai" }
+*/
+```
+
+```tsx
+type ExcludeOne<T> = { [P in keyof T]: Partial<Record<Exclude<keyof T, P>, undefined>> }[keyof T];
+
+/*
+- 1) [P in keyof T]에서 P는 T객체의 키값
+- 2) Exclude<keyof T, P>는 T 객체가 가진 키값에서 P 타입과 일치하는 키값을 제외 (A)
+- 3) Record<A, undefined>는 키로 A 타입을, 값으로 undefined 타입을 갖는 레코드 타입. 즉, 전달받은 객체 타입을 모두 { [key]: undefined } 형태로 만든다. (B)
+- 4) Partial<B>는 B 타입을 모두 옵셔널로 만든다. { [key]?: undefined }
+- 5) 최종적으로 [P in keyof T]로 매핑된 타입에서 동일한 객체의 키값인 [keyof T]로 접근하기 때문에 4번 타입이 반환된다.
+*/
+
+```
+
+```tsx
+// type PickOne<T> = One<T> & ExcludeOne<T>;
+
+type PickOne<T> = {
+  [P in keyof T]: Record<P, T[P]> & Partial<Record<Exclude<keyof T, P>, undefined>>;
+}[keyof T];
+```
+
+→ 전달된 T 타입의 **1개의 키는 값**을 가지고 있으며, 나머지 키는 **옵셔널한 undefined 값**을 가진 객체
+
+```tsx
+[170p]
+```
+
+
+### 3. NonNullable 타입 검사 함수를 사용하여 간편하게 타입 가드하기
+
+NonNullable 타입: 제네릭으로 받는 T가 null 또는 undefined일 때 never 또는 T를 반환하는 타입
+
+```tsx
+type NonNullable<T> = T extends null | undefined ? never : T;
+```
+
+NonNullable 함수: 매개변수가 null  또는 undefined라면 false를 반환한다.
+
+```tsx
+function NonNullable<T>(value: T): value is NonNullable<T> {
+  return value !== null && value !== undefined;
+}
+// 사용하는 쪽에서 true가 반환된다면 넘겨준 인자는 null, undefined가 아닌 타입으로 타입 가드가 된다/타입이 좁혀진다.
+```
+
+Promise.all을 사용할 때 NonNullable 적용하기
+
+## 5.4 불변 객체 타입으로 활용하기
+
+상숫값을 관리할 때 객체를 **열린 타입**으로 사용하는 예
+
+```tsx
+const colors = {
+  red: "#F45452",
+  green: "#0C952A",
+  blue: "#1A7CFF",
+  };
+  
+  // string으로 설정하면 colors에 어떤 값이 추가될지 모르기 때문에 getColorHex 함수의 반환 값은 any가 된다.
+  const getColorHex = (key: string) => colors[key];
+```
+
+### 1. Atom 컴포넌트에서 theme style 객체 활용하기
+
+props 타입이 string이면 키 값이 자동 완성되지 않으며, 잘못된 키값을 넣어도 에러가 발생하지 않게 된다.
+
+keyof,  typeof 연산자로 theme 객체 타입을 구체화해서 해결해보자. 
+
+#### 타입스크립트 keyof 연산자로 객체의 키값을 타입으로 추출하기
+
+```tsx
+interface ColorType {
+  red: string;
+  green: string;
+  blue: string;
+}
+type ColorKeyType = keyof ColorType; // 'red' | 'green' | 'blue'
+```
+
+#### 타입스크립트 typeof 연산자로 값을 타입으로 다루기
+
+```tsx
+const colors = {
+  red: "#F45452",
+  green: "#0C952A",
+  blue: "#1A7CFF",
+};
+type ColorsType = typeof colors;
+/* {
+  red: string;
+  green: string;
+  blue: string;
+} */
+```
+
+#### 객체의 타입을 활용해서 컴포넌트 구현하기
+
+- 
+    
+    ```tsx
+    import React, { FC } from "react";
+    import styled from "styled-components";
+    
+    const colors = {
+      black: "#000000",
+      gray: "#222222",
+      white: "#FFFFFF",
+      mint: "#2AC1BC",
+    };
+    
+    const theme = {
+      colors: {
+        default: colors.gray,
+        ...colors
+      },
+      backgroundColors: {
+        default: colors.white,
+        gray: colors.gray,
+        mint: colors.mint,
+        black: colors.black,
+      },
+      fontSize: {
+        default: "16px",
+        small: "14px",
+        large: "18px",
+      },
+    };
+    
+    type ColorType = keyof typeof theme.colors;
+    type BackgroundColorType = keyof typeof theme.backgroundColors;
+    type FontSizeType = keyof typeof theme.fontSize;
+    
+    interface Props {
+      color?: ColorType;
+      backgroundColor?: BackgroundColorType;
+      fontSize?: FontSizeType;
+      children?: React.ReactNode;
+      onClick: (event: React.MouseEvent<HTMLButtonElement>) => void | Promise<void>;
+    }
+    
+    const Button: FC<Props> = ({ fontSize, backgroundColor, color, children }) => {
+      return (
+        <ButtonWrap
+          fontSize={fontSize}
+          backgroundColor={backgroundColor}
+          color={color}
+        >
+          {children}
+        </ButtonWrap>
+      );
+    };
+    
+    const ButtonWrap = styled.button<Omit<Props, "onClick">>`
+      color: ${({ color }) => theme.colors[color ?? "default"]};
+      background-color: ${({ backgroundColor }) =>
+        theme.backgroundColors[backgroundColor ?? "default"]};
+      font-size: ${({ fontSize }) => theme.fontSize[fontSize ?? "default"]};
+    `;
+    ```
