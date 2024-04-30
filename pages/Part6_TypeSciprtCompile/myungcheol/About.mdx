@@ -1,1 +1,54 @@
 ## About
+
+### 타입스크립트로 바벨을 대체할 수 있을까?
+
+타입스크립트가 `tsconig.json`의 `target` 설정을 통해서 ES5 이하의 자바스크립트 코드로 트랜스파일링 해주기 때문에, 해당 역할을 해주는 바벨이 더 이상 필요하지 않는다고 생각할 수 있다. 그러나 바벨은 JS -> JS로 트랜스파일링 해주면서 타입스크립트가 해주지 못하는 역할들을 여전히 하고 있다.
+
+예를 들어 CSS in JS 라이브러리인 Emotion의 CSS Prop를 사용하기 위해서는 타입스크립트와 바벨에 대한 설정 모두가 필요하다.
+
+```tsx
+// 아래와 같이 tsx에서 css prop을 사용하려면
+// tsconfig와 babel 설정이 모두 필요하다
+function Comp() {
+  return <div css={{ color: "red" }}>예시</div>;
+}
+```
+
+```JSON
+// tsconfig.json
+// TS 환경에서 코드 작성시 에러가 나지 않도록 해준다.
+{
+  "compilerOptions": {
+    //...
+    "jsxImportSource": "@emotion/react",
+    //...
+  }
+  //...
+}
+```
+
+```JSON
+// babelrc
+// 실제 런타임에서 css prop이 적절히 실행될 수 있도록 해준다.
+{
+  "sourceType": "unambiguous",
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "chrome": 100
+        }
+      }
+    ],
+    [
+      "@babel/preset-react",
+      { "runtime": "automatic", "importSource": "@emotion/react" }
+    ],
+    "@babel/preset-typescript",
+    "@emotion/babel-preset-css-prop"
+  ],
+  "plugins": ["@emotion/babel-plugin"]
+}
+
+```
