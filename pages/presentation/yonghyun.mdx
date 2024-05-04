@@ -1,1 +1,297 @@
-## 안녕하세요
+![Untitled](https://velog.velcdn.com/images/freejak5520/post/4127db7b-4f0a-4046-97a0-651ca42fadcf/image.png)
+
+> zod is a TypeScript-first schema declaration and validation library. -Zod Docs
+
+zod 공식문서에서 이야기하고 있듯이 zod는 스키마 선언 및 유효성 검사 라이브러리이다.
+
+## 1. Zod를 사용하는 이유
+
+Zod를 필요로 하는 이유는 TypeScript의 한계 때문이다.
+
+TypeScript는 컴파일 시점에서의 타입에러만 잡아낼 수 있고 런타임 단계에서는 이미 JavaScript로 컴파일된 후이기 때문에 타입 에러를 잡아낼 수 없다.
+
+또한 TypeScript는 특정 타입만 입력받도록 강제하는 것은 가능하지만 원하는 문자열이나 특정 숫자 범위를 강제하거나 number 타입의 정수와 실수를 구분하는 것은 불가능하다.
+
+이러한 TypeScript의 한계를 극복하기 위해 zod 라이브러리를 사용한다.
+
+## 2. 스키마(schema)
+
+스키마(schema)라는 단어는 형태 , 모양 , 모양 또는 계획 을 의미 하는 그리스어 skhēma 에서 유래되었다.
+
+스키마란 데이터의 형태 및 구조라고 할 수 있다. 한 사람의 정보에 대해 zod를 이용하여 스키마를 정의해 보면 다음과 같다.
+
+```tsx
+import { z } from "zod";
+
+const User = z.object({
+  email: z.string(),
+  age: z.number(),
+  active: z.boolean(),
+});
+```
+
+이렇게 zod를 통해 Man 정보를 객체 형식으로 나타내보았다.
+
+zod 문법에 대해 배운적이 없더라도 바로 이해할 수 있을 정도로 직관적이다.
+
+이를 이용하여 유효성 검증을 하는 방법에 대해 알아보자.
+
+## 3. 유효성 검증
+
+```tsx
+User.parse({
+  email: "user@test.com",
+  age: 35,
+  active: true,
+}); // ✅ 유효성 검증 통과
+
+// return {
+//   email: "user@test.com",
+//   age: 35,
+//   active: true,
+// }
+
+User.parse({
+  email: "user@test.com",
+  age: "35",
+}); // ❌ 유효성 검증 실패
+```
+
+유효성 검증 또한 위의 코드처럼 `parse`를 통해 간단하게 진행된다.
+
+첫 번째 케이스의 경우엔 유효성 검증을 통과했기 때문에 입력값을 그대로 return하고 두 번째 케이스 같은 경우엔 잘못된 값이 들어왔기 때문에 유효성 검증에 실패하여 Error를 뱉는다.
+
+> 여기서 한 가지 주의할 부분은 검증이 성공했을 경우 `parse()` 함수가 반환하는 객체에는 검증에 통과한 속성만 포함된다.
+>
+> ```tsx
+> const user = User.parse({
+>   email: "user@test.com",
+>   age: 35,
+>   active: true,
+>   password: "abcd1234",
+> });
+>
+> console.log(user);
+> ```
+>
+> 위의 경우에 콘솔을 찍어보면 `parse()` 함수가 반환한 결과 객체에는 해당 속성이 제외되어 있는 것을 볼 수 있다.
+>
+> ```tsx
+> {
+>   email: "user@test.com",
+>   age: 35,
+>   active: true,
+> }
+> ```
+>
+> 이것은 `parse()` 함수의 반환 타입이 정의된 스키마에 의해서 결정이 되기 때문이다. 타입에 `password` 속성이 없는데 값에만 `password` 속성이 들어있다면 타입 에러가 발생했을 것입니다.
+>
+> 이처럼 Zod는 타입스크립트에 아주 친화적으로 설계되어 있어서 견고한 코드를 작성하는데도 도움을 준다.
+
+특히 이 Error에는 어떠한 부분에서 검증이 실패 하였는지에 대한 정보가 들어있기 때문에 매우 유용하다. 두번째 케이스의 경우 다음과 같은 에러메세지가 생성된다.
+
+```json
+ZodError: [
+  {
+    code: "invalid_type",
+    expected: "number",
+    received: "string",
+    path: ["age"],
+    message: "Expected number, received string",
+  },
+  {
+    code: "invalid_type",
+    expected: "boolean",
+    received: "undefined",
+    path: ["active"],
+    message: "Required",
+  },
+];
+```
+
+`parse`뿐만 아니라 `safeParse`라는 기능도 있는데 둘의 차이는 다음과 같다.
+
+- `parse`
+  - 오류가 발생하는 경우 오류 메세지와 함께 throw 함수를 호출해 서버가 중단된다.
+- `safeParse`
+  - 오류가 발생하는 경우 서버 중단 없이 결과 객체에 오류 메세지 및 여러 정보를 전달하고, 개발자는 이 객체에서 프로퍼티를 추출해 검증 로직을 작성할 수 있다.
+
+## 4. 타입 추론
+
+Zod는 스키마를 기준으로 타입스크립트 타입을 알아서 추론할 수도 있다.
+
+이 기능을 잘 활용하면 아예 타입을 따로 작성할 필요가 없어지고 따라서 타입을 스키마와 서로 맞춰 줄 걱정이 사라진다.
+
+예를 들어 사용자 객체를 입력으로 받는 함수를 TypeScript로 작성하려면 아래 처럼 입력 타입을 작성해주어야 한다.
+
+이 기능을 통해 타입을 따로 작성할 필요가 없어진다.
+
+```tsx
+// 내가 직접 타입을 작성
+interface User {
+  email: string;
+  age: number;
+  active: boolean;
+}
+
+function processUser(user: User) {
+  User.parse(user); // 유효성 검증
+  // 사용자 처리 로직
+}
+```
+
+하지만 Zod의 infer과 JavaScript의 typeof 연산자를 사용하면 이미 정의한 스키마로부터 타입을 뽑아낼 수 있다.
+
+```tsx
+import { z } from "zod";
+
+const User = z.object({
+  email: z.string(),
+  age: z.number(),
+  active: z.boolean(),
+});
+
+type User = z.infer<typeof User>;
+
+function processUser(user: User) {
+  User.parse(user); // 유효성 검증
+  // 사용자 처리 로직
+}
+```
+
+코드를 작성하면서 직접 작성한 타입과 스키마가 항상 서로 일치하도록 관리한다는 게 여간 번거로운 일이 아니며 까먹기도 참 쉬운데 이럴때 Zod를 사용하면 스키마 활용을 극대화하고 불필요한 타입을 작성을 최소화할 수 있어서 개발 생산성이나 유지 보수 측면에서 큰 도움을 받을 수 있다.
+
+## 5. 기초 요소
+
+```tsx
+import { z } from "zod";
+
+// primitive values
+z.string();
+z.number();
+z.bigint();
+z.boolean();
+z.date();
+z.symbol();
+
+// empty types
+z.undefined();
+z.null();
+z.void(); // accepts undefined
+
+// catch-all types
+// allows any value
+z.any();
+z.unknown();
+
+// never type
+// allows no values
+z.never();
+```
+
+그외 이메일, 패스워드, 대소문자 등 다양한 유효성 검사를 함수 한줄로 처리할 수 있도록 지원하고 있다.
+
+![Untitled](https://prod-files-secure.s3.us-west-2.amazonaws.com/6dd09c7c-ed2b-43ce-9322-3dd2fe92dfac/f98c64a4-28eb-4481-8133-81819b998f8c/Untitled.png)
+
+## 6. Zod의 주요 특징
+
+- 타입 안정성: TypeScript와 Zod를 함께 사용하면, 컴파일 시 데이터 유효성 검증 관련 오류를 쉽게 찾아낼 수 있다. 이를 통해 런타임에서 발생할 수 있는 유효성 검증 관련 버그를 미리 방지하는 것이 가능하다.
+- 간결한 구문: Zod는 데이터 스키마를 정의하는데 필요한 코드를 최소화하는 간결한 구문을 제공한다. 이를 통해 복잡한 유효성 검사 규칙도 쉽게 정의할 수 있다.
+- 비동기 유효성 검사: Zod는 유효성 검사 과정에서 비동기 작업을 수행하는 것을 지원한다.
+- 확장성: Zod는 다른 양식 유효성 검사 라이브러리와의 통합이 용이하며, 사용자가 직접 유효성 검사 로직을 설정할 수 있게 한다.
+- 유연한 검증 로직 구성: Zod는 다양한 검증 함수와 그 조합을 제공한다. 이를 활용하면 복잡한 유효성 검사 규칙을 손쉽게 만들 수 있다. 이렇게 유연한 검증 로직을 통해 데이터의 정확성과 안정성을 더욱 높일 수 있다.
+
+![jzy.png](https://blog.kakaocdn.net/dn/ZhrEU/btsCwSrQZhQ/tzYp9UHGcD2Vow5A3Xvmck/img.png)
+
+Zod가 Joi 대비해서 인기를 얻은 큰 이유 중 하나는 Zod의 훌륭한 타입스크립트 지원 때문이다.
+
+Joi는 데이터에 대한 검증을 했을때, 그 검증으로 얻은 정보가 타입스크립트 타입으로 남지 않는 반면에 Zod에서 데이터를 파싱한 후에는 데이터의 타입을 타입스크립트의 타입으로 확인할 수 있다.
+
+때문에, 타입스크립트 생태계 내에서 Zod를 사용하면 Joi를 사용하는 것과 비교해 개발자 생산성을 크게 개선시킬 수 있다.
+
+## 7. Zod와 React-Hook-Form
+
+이런 zod는 react에서 사용할 땐 주로 react-hook-form과 같이 곁들여져 사용된다.
+
+**react-hook-form을 통해서 전체적인 form들을 관리**해 주고 특정 f**orm들에 매핑되어야 하는 값이 올바른지에 대한 유효성의 판단을 zod**가 해주면서 효과적인 입력 값 검증 기능을 제공해 주기 때문이다.
+
+```markdown
+유효성 검사 방식 : 제출(submit)할 때만 검사
+
+1. 이메일
+
+- 필수값
+- 유효한 이메일 형식인지 확인
+
+2. 비밀번호
+
+- 필수값
+- 6자 이상, 30자 이하
+- 비밀번호 확인과 일치하는지 확인
+```
+
+위와 같이 폼의 유효성 검사 로직을 작성해본다고 하자.
+
+```tsx
+const schema = z
+  .object({
+    email: z
+      .string({
+        required_error: "이메일을 입력해주세요.",
+      })
+      .email({ message: "이메일 형식에 맞지 않습니다." }),
+    password: z
+      .string({
+        required_error: "비밀번호를 입력해주세요.",
+      })
+      .min(6, { message: "최소 6자 이상으로 입력해주세요." })
+      .max(30, { message: "최대 30자까지 입력 가능합니다." }),
+    passwordCheck: z.string({
+      required_error: "비밀번호를 입력해주세요.",
+    }),
+  })
+  .superRefine(({ password, passwordCheck }, context) => {
+    if (password !== passwordCheck) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "비밀번호가 일치하지 않습니다.",
+        path: ["passwordCheck"],
+      });
+    }
+  });
+// 위의 케이스에서 superRefine  path 프로퍼티에는 string[]이 전달되어야 하고
+// 이 배열의 요소에 전달되어야 할 것은 에러가 표시될 스키마키값이다.
+```
+
+기본적으로 zod로 작성한 스키마의 모든 필드는 `NonNullable`이다.
+
+- `null` 값을 허용하고 싶은 경우에는 `.nullable()` 메서드를 사용.
+- `null`, `undefined` 값을 허용하고 싶은 경우네는 `.nullish()` 메서드를 사용.
+
+필수 항목을 작성하지 않았을 때 커스텀 에러메세지를 띄우고 싶다면 아래와 같이 작성한다.
+
+```tsx
+.[원시형]({ required_error: "에러메세지" })
+```
+
+### RHF에 zod 연결하기
+
+```tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+...
+
+const { control, handleSubmit } = useForm({
+  resolver: zodResolver(schema),
+  mode: 'onSubmit', // 제출할 때만 유효성 검사
+  reValidateMode: 'onSubmit', // 제출할 때만 유효성 검사
+});
+```
+
+zod 스키마를 전부 작성했다면, 위와 같이 `useForm`, `zodResolver`를 import해온 다음 `useForm` 메서드를 호출해야 한다.
+
+실시간 유효성 검사가 아니라 제출 버튼을 클릭할 때 검사하므로 `mode`, `reValidateMode` 프로퍼티를 다음과 같이 정의힌다.
+
+- `mode: 'onSubmit'`
+- `reValidateMode: 'onSubmit'`
