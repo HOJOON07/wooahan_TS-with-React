@@ -1,172 +1,14 @@
-# 3장. 고급 타입
+# 3장 고급타입
 
 ## 3.1 타입스크립트만의 독자적 타입 시스템
 
-### 3.1.1 any 타입
+## 3.2 타입조합
 
-- JS 에 존재하는 모든 값을 오류 없이 받을 수 있다. 즉, 이전의 JS 의 기본적 사용 방법
-- 사용을 지양해야할 패턴, noImplicitAny 옵션으로 강제 가능
+### 1. 교차타입
 
-#### 어쩔 수 없는 3가지 사례
-
-- 개발 단계에서 임시로 갑 지정 필요 시
-- 어떤 값을 받을지 또는 넘겨줄지 정할 수 없을 때
-- 값을 예측할 수 없을 때 암묵적으로 사용
-
-### 3.1.2 unknown 타입
-
-- unknown 타입에는 모든 타입 할당 가능, 반대로 any 를 제외한 다른 타입으로 선언된 변수에는 unknown 타입 할당 불가능
-- 할당 시점에는 에러가 발생하지 않지만, 아무런 값이 할당 되지 않은채로 실행되면 컴파일 에러 발생
-- any 는 무조건 넘어가지만, unknown 은 타입을 강제하여 버그 가능성을 줄일 수 있다
-
-- unkown 을 사용하여 아직 어떤 값이 들어올지 모르는 메서드의 타입을 강제하는 코드
-
-```ts
-const jsonParserUnknown = (jsonString: string): unknown =>
-  JSON.parse(jsonString);
-
-const myOtherAccount = jsonParserUnknown(`{ "name": "Samuel" }`);
-
-console.log(myOtherAccount.name); // ERR
-```
-
-- 아래와 같이 타입을 정확히 지정해야만 컴파일 오류가 발생하지 않아 개발자의 실수를 줄일 수 있다
-
-```ts
-type jsonObj = {
-  name: string;
-};
-
-const jsonParserUnknown = (jsonString: string): jsonObj =>
-  JSON.parse(jsonString);
-
-const myOtherAccount = jsonParserUnknown(`{ "name": "Samuel" }`);
-
-console.log(myOtherAccount.name);
-```
-
-#### 강제 형변환
-
-- 보통 as unknown as Type 을 사용하여 변환한다
-- 변환 대상의 서로 부모 자식 관계가 있으면, as unknown 생략이 가능 => 같은 타입이므로
-- 부모 자식 관계가 아니면, as unknown 으로 변환하여 아무런 타입이나 할당이 가능한 상태로 만들어 다시 할당하는 방법을 사용한다
-  - 그런데, 이거 any 써도 무방하지 않나요? 암만 생각해도 그런듯
-
-\*\* [p.86] 깨진 유리창 이론에 대해서 어찌 생각하시나요? 실제로 사례를 본적이 있나요?
-\*\* [p.87] as unknown as Type 에 대해 왜 서로 싸우죠? ㅋㅋㅋ
-
-```ts
-const env = process.env as unknown as ProcessEnv;
-
-const env = process.env as any as ProcessEnv;
-```
-
-\*\* [p.87] 두 코드의 차이가 있을까요?
-
-### 3.1.3 void 타입
-
-- JS 에서 리턴이 없으면 undefined 가 자동으로 반환, 따라서 void 사용 필요!
-- 변수에도 할당이 가능, 단 undefined 또는 null 만 지정 가능
-
-### 3.1.4 never 타입
-
-- 값을 반환할 수 없는 타입으로, 명시적으로 구분하여 사용이 필요
-
-#### 값을 반환할 수 없는 예
-
-- 에러를 던지는 경우(throw 에 의한 에러)
-- 무한히 함수가 실행되는 경우(무한 루프)
-
-### 3.1.5 Array 타입
-
-- Object.prototype.toString.call() 을 사용하면 Array 데이터 타입 확인 가능
-- JS 와는 달리 TS 에서는 배열에 아무 데이터 타입만 넣는 것이 불가능 하며, 별도의 문법이 필요하므로 배울 필요가 있다
-
-```ts
-const array1: number[] = [1, 2, 3];
-const array2: Array<number> = [1, 2, 3];
-```
-
-- 배열에 여러 타입을 관리하려면 유니온 타입을 사용
-
-```ts
-const array1: number[] | string[] = [1, 'str1'];
-const array2: Array<number | string> = [2, 'str2'];
-```
-
-- 튜플은 이러한 TS 의 배열에 길이 제한까지 추가한 타입, 배열보다 강제성을 더 줄 수 있다
-
-```ts
-const tuple1: [number] = [1];
-const tuple2: [number, string, boolean] = [1, 'str', true];
-```
-
-- 전개 연산자를 사용하여 튜플과 배열의 성질을 혼합하여 사용 가능
-
-```ts
-const httpStatusFromPaths: [number, string, ...string[]] = [
-  400,
-  'Bad Request',
-  '/users/:id',
-  '/users/:userId',
-];
-```
-
-- 옵셔널 프로퍼티를 필요에 따라 사용 가능
-
-```ts
-const optionalTuple1: [number, number, number?] = [1, 2];
-```
-
-### 3.1.6 enum 타입
-
-- 열거형 데이터 타입으로, 구조체를 만들 때 사용
-- 각각의 열거 데이터에 0 부터 값을 삽입, 또는 명시 가능
-- 문자열 상수를 만들어 타입 안정성, 가독성, 명확한 의미 전달 및 높은 응집력의 효과
-- 단, TS 가 자동으로 추론한 값을 사용하는 것은 지양
-- 단, 할당된 값을 넘어서는 범위의 경우 문제 발생의 여지가 있다
-- enum 은 JS 로 변환시 IIFE 로 변환 되므로, 번들링의 사이즈가 증가하는 이슈 발생
-  - const enum 또는 as const assertion 을 사용해서 해결 가능
-
-```ts
-enum ProgrammingLang {
-  Typescript,
-  Javascript,
-  Java,
-  Cplusplus = 12,
-}
-
-console.log(ProgrammingLang.Typescript); // 0
-console.log(ProgrammingLang.Cplusplus); // 12
-console.log(ProgrammingLang[200]); // undefined
-```
-
-- const enum 을 사용하면 정의되지 않은 데이터에 대한 접근 및 의도하지 않은 값의 할당을 방지할 수 있다
-
-```ts
-const enum NUMBER {
-  ONE = 1,
-  TWO = 2,
-}
-
-const myNum: NUMBER = 100; // ERR
-
-const enum STRING_NUMBER {
-  ONE = 'ONE',
-  TWO = 'TWO',
-}
-
-const myStringNum: STRING_NUMBER = 'THREE'; // ERR
-```
-
-\*\* [p. 97] 이거 에러 나지 않나요?
-
-## 3.2 타입 조합
-
-### 3.2.1 교차 타입(Intersection)
-
-- 여러가지 타입을 결합하여 하나의 단일 타입으로 만드는 것, & 을 사용하여 표기
-- 결합한 타입을 모두 만족해야만 한다
+- 여러가지 타입을 결합하여 하나의 단일 타입으로 만들수가 있다.
+- 기존에 존재하는 다른 타입들을 합쳐서 해당 타입의 모든 멤버를 가지는 새로운 타입을 생성하는 것이다. &을 사용하여 표기한다.
+- 예시 : 아래처럼 ProductItemWithDiscount 타입의 변수를 선언하고 값을 할당하면 ProductItem의 모든 멤버와 discountAmount까지 멤버로 가지게 된다.
 
 ```ts
 type ProductItem = {
@@ -174,63 +16,57 @@ type ProductItem = {
   name: string;
   type: string;
   price: number;
-  imgUrl: string;
+  imageUrl: string;
   quantity: number;
 };
 
 type ProductItemWithDiscount = ProductItem & { discountAmount: number };
 ```
 
-### 3.2.2 유니온 타입(Union)
+### 2. 유니온 타입
 
-- 여러가지 타입을 결합하여 하나의 단일 타입으로 만드는 것, | 을 사용하여 표기
-- 결합한 타입 중 하나가 될 수 있는 타입을 말한다
+- 여러 타입 중 1개의 타입이 될 수 있는 타입이다.
+- |로 표기한다.
+- 주로 특정변수가 가질 수 있는 타입을 전부 나열하는 용도로 사용한다.
+- 예시 : ProductEventItem은 ProuctItem이 될수도 있고, CardItem이 될수도 있다.
 
 ```ts
-type ProductItem = {
-  id: number;
-  name: string;
-  type: string;
-  price: number;
-  imgUrl: string;
-  quantity: number;
-};
-
 type CardItem = {
   id: number;
   name: string;
   type: string;
-  imgUrl: string;
+  imageUrl: string;
 };
 
 type PromotionEventItem = ProductItem | CardItem;
-
-const prontPromotionItem = (item: PromotionEventItem) => {
-  console.log(item.name);
-  console.log(item.quantity); // ERR, CardItem 에서는 quantity 를 보장하지 못함
-};
 ```
 
-### 3.2.3 인덱스 시그니쳐(Index Signatures)
+### 3. 인덱스 시그니처
 
-- 속성 이름을 알 수 없지만 타입을 알고 있을 때 사용하는 문법
-- 해당 문법을 통해 특정 타입 속성의 타입을 강제할 수 있다
-- 인터페이스 내부에 [Key: K]: T 꼴로 타입을 명시한다
+- 특정 타입의 속성 이름은 알 수 없지만 속성값의 타입을 알고 있을 때 사용하는 문법
+- [key: k]: T 꼴로 타입을 명시해주면 되는데 이는 해당 타입의 속성 키는 모두 K 타입이어야 하고 속성값은 모두 T타입을 가져야 한다는 의미다.
 
 ```ts
 interface IndexSignatureEx {
-  [key: string]: number | boolean;
-  length: number;
-  isValid: boolean;
-  name: string; // ERR, number 혹은 boolean 만 가능
+  [key: string]: number;
 }
 ```
 
-\*\* [p.101] 이런 부분 표현이 조금 재미 있는 것 같습니다. 다른 타입의 특정 속성이 가지는 타입?
+- 선언할 때 다른 속성을 추가로 명시해줄 수 있는데 추가로 명시된 속성은 인덱스 시그니처에 포함되는 타입이어야 한다.
 
-### 3.2.4 인덱스드 엑세스 타입(Indexed Access Types)
+```ts
+interface IndexSignatureEx2 {
+  [key: string]: number | boolean;
+  length: number;
+  isValid: boolean;
+  name: string; //에러 발생
+}
+```
 
-- 다른 타입의 특정 속성이 가지는 타입을 알아내거나, 해당 타입을 받아오기 위해 사용
+### 4. 인덱스드 엑세스 타입
+
+- 인덱스드 엑세스 타입은 다른 타입의 특정 속성이 가지는 타입을 조회하기 위해 사용된다.
+- 아래는 객체에서의 인덱스드 엑세스 타입 예시이다.
 
 ```ts
 type Example = {
@@ -239,86 +75,57 @@ type Example = {
   c: boolean;
 };
 
-type indexedAccess = Example['a']; // number
-type indexedAccess2 = Example['a' | 'b']; // number | string
-type indexedAccess3 = Example[keyof Example]; // number | string | boolean
-
-const indexedAccessVar: indexedAccess = 1;
-const indexedAccessVar2: indexedAccess2 = 's';
-const indexedAccessVar3: indexedAccess3 = false;
+type IndexedAccess = Example["a"];
+type IndexedAccess2 = Example["a" | "b"]; // number | string
+type IndexedAccess3 = Example[keyof Example]; //number | string | boolean
+type ExAlias = "b" | "c";
+type IndexedAccess4 = Example[ExAlias]; // string | boolean
 ```
 
-- 특정 배열의 요소 타입을 받기 위해 아래와 같은 코드로 구현이 가능하다
+- 배열의 요소 타입을 조회하기 위해 사용되기도 한다.
+- 배열 타입의 모든 요소는 전부 동일한 타입을 가지며 배열의 인덱스는 숫자 타입이다. 따라서 number로 인덱싱하여 배열 요소를 얻은 다음 typeof 연산자를 붙여주면 해당 배열 요소의 타입을 가져올 수 있다.
 
 ```ts
-const promotionList = [
-  { type: 'product', name: 'chicken' },
-  { type: 'product', name: 'pizza' },
-  { type: 'card', name: 'cheer-up' },
+const PromotionList = [
+  { type: "product", name: "chicken" },
+  { type: "product", name: "pizza" },
+  { type: "card", name: "cheer-up" },
 ];
 
-// 책의 에러 코드, 해당 코드는 배열 타입 선언에만 사용 가능
-// type ElementOf<T> = typeof T[number];
-
-// 입력받은 제너릭이 특정 타입으로 구성 된 배열인지를 확인하고
-// 해당 타입의 배열이 맞다면 배열의 요소를 T[number] 로 인덱싱 하여 요소의 타입을 반환
-// 아닐 경우 never 타입으로 반환
-type ElementOf<T> = T extends any[] ? T[number] : never;
-
-// promotionList 의 배열 타입을 전달 하여 promotionList 의 요소 타입을 반환 받기
-type PromotionElementType = ElementOf<typeof promotionList>; // { type: string; name: string; } | { type: string; name: string; }
-
-const PromotionElementTypeObj: PromotionElementType = {
-  type: 'type',
-  name: 'name',
-};
-
-// 객체일 경우 예시 코드
-const promotionObj = {
-  promotionListType: {
-    type: 'type',
-    name: 'name',
-  },
-};
-
-// type ElementOf<T> = typeof T[number];
-type PropertyOf<T> = T extends object ? T : never;
-
-// ElementOf 타입 테스트
-type PromotionProertyType = PropertyOf<typeof promotionObj>; // { type: string; name: string; } | { type: string; name: string; }
-
-const PromotionPropertyTypeObj: PromotionProertyType = {
-  promotionListType: {
-    type: 'type',
-    name: 'name',
-  },
-};
+type ElementOf<T> = (typeof T)[number];
+type ElementOfProduct<T> = (typeof T)[number]["product"];
+type ElementOfName<T> = (typeof T)[number]["name"];
+//type PromotionItemType = {type:string; name:string}
+type PromotionItemType = ElementOf<PromotionList>;
+//type PromotionItemProductType = string;
+type PromotionItemProductType = ElementOfProduct<PromotionList>;
+//type PromotionItemNameType = string;
+type PromotionItemNameType = ElementOfProduct<PromotionList>;
 ```
 
-### 3.2.5 맵드 타입(Mapped Types)
+### 5장 맵드 타입
 
-- 다른 타입을 기반으로 다른 타입을 선언할 때 사용하는 문법
-- 인덱스 시그니처 문법을 사용하면 반복적인 타입 선언을 효과적으로 줄일 수 있다
+- 다른 타입을 기반으로 한 타입을 선언할 때 사용하는 문법
+- 인덱스 시그니처 문법을 사용해서 반복적인 타입 선언을 효과적으로 줄일 수 있다.
 
 ```ts
-type ExampleMapped = {
+type Example = {
   a: number;
   b: string;
   c: boolean;
-};
+}
 
 type Subset<T> = {
-  [K in keyof T]?: T[K];
-};
+  [K in key of T]?: T[K];
+}
 
-const aExampleMapped: Subset<ExampleMapped> = { a: 3 };
-const bExampleMapped: Subset<ExampleMapped> = { b: 'hello' };
-const cExampleMapped: Subset<ExampleMapped> = { c: true };
+const aExample: Subset<Example> = {a:3};
+const bExample: Subset<Example> = {b:"hello"};
+const aExample: Subset<Example> = {a:4, c:true};
+
 ```
 
-- 맵드 타입에서 매핑 시, readonly 또는 ? 수식어 적용이 가능하며, - 를 추가하면 수식어를 제거한 타입 선언이 가능
-  - `-readonly [P in keyof T]: T[P];` 로 쓰면 readonly 제거
-  - `[P in keyof T]-?: T[P];` 로 쓰면 ? 제거
+- 맵드 타입에서 매핑할 때는 readonly와 ?를 수식어로 적용할 수 있다. 맵드 타입의 특이한 점은 이러한 수식어를 더해주는 것뿐만 아니라 제거할 수도 있다는 것이다. 기존 타입에 존재하던 readonlysk ? 앞에 -를 붙여주면 해당 수식어를 제거한 타입을 선언할 수 있다.
 
 ```ts
 type ReadOnlyEx = {
@@ -326,319 +133,188 @@ type ReadOnlyEx = {
   readonly b: string;
 };
 
-let objByReadOnlyEx: ReadOnlyEx = {
-  a: 1,
-  b: '2',
+type CreateMuteable<Type> = {
+  -readonly [Property in keyof Type]: Type[Property];
 };
 
-// objByReadOnlyEx.a = 3; // ERR
-console.log(objByReadOnlyEx); // { a: 1, b: '2' };
-
-type CreateMutable<T> = {
-  // readonly 속성을 제거하여 값을 변화해도 문제 X
-  -readonly [P in keyof T]: T[P];
-};
-
-type ChangedMutableTypeFromReadOnlyEx = CreateMutable<ReadOnlyEx>;
-
-let objByChangedMutableTypeFromReadOnlyEx = {
-  a: 1,
-  b: '2',
-};
-
-objByChangedMutableTypeFromReadOnlyEx.a = 3;
-objByChangedMutableTypeFromReadOnlyEx.b = '4';
-
-console.log(objByChangedMutableTypeFromReadOnlyEx); // { a: 3, b: '4' };
+type ResultType = CreateMutable<ReadOnlyEx>;
 
 type OptionalEx = {
-  a?: number;
-  b?: string;
-  c: boolean;
-};
+  a?:number;
+  b?:string;
+  c:boolean;
+}
 
-type Concrete<T> = {
-  // ?(optaional) 속성을 제거하여, 해당 속성이 반드시 존재하도록 수정
-  [P in keyof T]-?: T[P];
-};
+type Concreate<Type> =
+  [Property in keyof Type]-?: Type[Property];
+}
 
-type ChandedConcreteTypeFromOptionalEx = Concrete<OptionalEx>;
-
-let objByChandedConcreteTypeFromOptionalEx: ChandedConcreteTypeFromOptionalEx =
-  {
-    a: 1,
-    b: '2',
-    c: true,
-  };
-
-console.log(objByChandedConcreteTypeFromOptionalEx); // { a: 1, b: '2', c: true };
+type ResultType = Concreate<OptionalEx>;
 ```
 
-- 배민 예시 코드
+### 6. 템플릿 리터럴 타입
 
-```ts
-const BottomSheetMap = {
-  RECENT_CONTACTS: RecentContactsBottomSheet,
-  CARD_SELECT: CardSelectBottomSheet,
-  SORT_FILTER: SortFilterBottomSheet,
-  PRODUCT_SELECT: ProductSelectBottomSheet,
-  REPLY_CARD_SELECT: ReplyCardSelectBottomSheet,
-  RESEND: ResendBottomSheet,
-  STICKER: StickerBottomSheet,
-  BASE: null,
-};
-
-export type BOTTOM_SHEET_ID = keyof typeof BottomSheetMap;
-
-// 불필요한 반복이 발생한다
-type BottomSheetStore = {
-  RECENT_CONTACTS: {
-    resolver?: (payload: any) => void;
-    args?: any;
-    isOpened: boolean;
-  };
-  CARD_SELECT: {
-    resolver?: (payload: any) => void;
-    args?: any;
-    isOpened: boolean;
-  };
-  SORT_FILTER: {
-    resolver?: (payload: any) => void;
-    args?: any;
-    isOpened: boolean;
-  };
-  // ...
-};
-// Mapped Types를 통해 효율적으로 타입을 선언할 수 있다
-type BottomSheetStoreByMapped = {
-  [index in BOTTOM_SHEET_ID]: {
-    resolver?: (payload: any) => void;
-    args?: any;
-    isOpened: boolean;
-  };
-};
-```
-
-- as 키워드를 사용하여 키를 재지정하는 코드
-
-```ts
-type ChagnedBottomSheetStore = {
-  [index in BOTTOM_SHEET_ID as `${index}_BOTTOM_SHEET`]: {
-    resolver?: (payload: any) => void;
-    args?: any;
-    isOpened: boolean;
-  };
-};
-```
-
-\*\* [p.105] 아 이런건 진짜 좀.... ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ
-
-### 3.2.6 템플릿 리터럴 타입(Template Literal Types)
-
-- JS 의 템플릿 리터럴 문자열을 사용하여 기존 타입에 별도의 문자열을 추가한 타입을 선언하는 문법
+- 자바스크립트의 템플릿 리터럴 문자열을 사용하여 문자열 리터럴 타입을 선언할 수 있는 문법이다.
+- Stage 타입의 모든 유니온 멤버 뒤에 -stage를 붙여서 새로운 유니온 타입을 만들었다.
 
 ```ts
 type Stage =
-  | 'init'
-  | 'select-image'
-  | 'edit-image'
-  | 'decorate-card'
-  | 'capture-image';
+  | "init"
+  | "select-image"
+  | "edit-image"
+  | "decorate-card"
+  | "capture-image";
 
 type StageName = `${Stage}-stage`;
-// type StageName = "init-stage" | "select-image-stage" | "edit-image-stage" | "decorate-card-stage" | "capture-image-stage"
+// "init-stage" | "select-image-stage" | "edit-image-stage" | "decorate-card-stage" | "capture-image-stage";
 ```
 
-### 3.2.7 제네릭(Generic)
+### 7. 제네릭
 
-- 타입 간의 재사용성을 높이기 위해 사용되는 문법으로 C 나 JAVA 에서 가져온 것
-- 사용할 타입을 미리 정해두지 않고 실제로 값을 사용할 때 타입을 지정하여 사용하는 방식이다
-- 주로 한글자로 축약한 T(Type), E(Element), K(Key), V(Value) 를 사용한다
-- 타입 추론이 가능한 경우에는 `<>` 내부에 타입을 명시하지 않아도 컴파일러가 추론하여 대입한다
+- 다양한 타입 간에 재사용성을 높이기 위해 사용하는 문법이다.
+- 함수, 타입, 클래스 등에서 내부적으로 사용할 타입을 미리 정해두지 않고 타입 변수를 사용해서 해당 위치를 비워둔 다음에, 실제로 그 값을 사용할 때 외부에서 타입 변수 자리에 타입을 지정하여 사용하는 방식을 말한다.
+- 타입에 대해 정의하지 않아도 되기 때문에 재사용성이 크게 향상된다.
+- 타입변수는 일반적으로 <T>와 같이 꺽쇠괄호 내부에 정의되며, 사용할 때는 함수에 매개변수를 넣는 것과 유사하게 원하는 타입을 넣어주면 된다.
+
+```ts
+type ExampleArrayType<T> = T[];
+const array1: ExampleArrayType<string> = ["치킨", "피자", "우동"];
+```
+
+- any와의 차이점
+  - any: 타입 검사를 하지 않고 모든 타입이 허용되는 타입으로 취급된다.
+  - 제네릭: 모든 타입이 허용되지 않으며 선언 시점에서 원하는 타입을 특정할 수 있다.
+- 제네릭을 호출할 때 반드시 <> 안에 타입을 명시해야 되는 것은 아니며 타입을 명시하는 부분을 생략하면 컴파일러가 인수를 보고 타입을 추론해준다.
 
 ```ts
 function exampleFunc<T>(arg: T): T[] {
   return new Array(3).fill(arg);
 }
 
-console.log(exampleFunc('hello')); // [ 'hello', 'hello', 'hello' ]
-console.log(3); // [ 3, 3, 3 ]
+exampleFunc("hello"); //T는 string으로 추론된다.
 ```
 
-- 다만 제네릭은 타입이 할당 되지 않은 타입이므로 특정 타입에만 존재하는 값을 참조하려고 하면 에러가 발생
+- 특정 요소 타입을 알 수 없을때는 제네릭 타입에 기본값을 추가할 수 있다.
 
 ```ts
-function exampleFunc2<T>(arg: T): number {
-  return arg.length; // ERR
+interface SubmitEvent<T = HTMLElement> extends SyntheticEvent<T> {
+  submitter: T;
 }
 ```
 
-- 대신 제네릭에 extends 키워드를 통해 제약을 걸어주면 해당 속성을 사용할 수 있다
+- 제네릭은 특정한 타입에서만 존재하는 멤버를 참조하려고 하면 안된다.
 
 ```ts
-interface TypeWithLength {
+function exampleFun2<T>(arg: T): number {
+  return arg.length; // 에러발생: Property 'length' does not exist on type 'T'
+}
+```
+
+- 위 예시와 같은 경우에는 꺽쇠 내부에 'length 속성을 가진 타입만 받는다'라는 제약을 걸어줌으로써 length 속성을 사용할 수 있게끔 만들 수 있다.
+
+```ts
+interface TypeWithLenght {
   length: number;
 }
 
-function exampleFunc3<T extends TypeWithLength>(arg: T): number {
+function exampleFunc2<T extends TypeWithLenght>(arg: T): number {
   return arg.length;
 }
 ```
 
-- 단, TSX 파일 내부에서는 제네릭의 꺽쇠(`<>`)와 JSX 의 꺽쇠를 혼동하기 때문에 extends 키워드를 사용하거나, 함수 선언을 function 으로 한다
+- 제네릭을 사용할 때 주의해야 할 점이 있다. 파일 확장자가 tsx일 때 화살표 함수에 제네릭을 사용하면 에러가 발생한다. 이러한 상황을 피하기 위해서는 제네릭 부분에 extends 키워드를 사용해 컴파일러에게 특정 타입의 하위 타입만 올 수 있음을 확실히 알려주면 된다.
+- 그냥 제네릭을 사용할 때는 function 키워드를 선언하는게 편할듯
 
 ```ts
-// <T> 를 태그로 인식하여 에러 발생
-const arrowExampleFunc = <T>(arg: T) => {
+//에러 발생: JSX element 'T' has no corresponding closing tag
+const arrowExampleFunc = <T>(arg: T): T[] => {
   return new Array(3).fill(arg);
 };
 
-// No ERR
-const arrowExampleFunc2 = <T extends {}>(arg: T) => {
+//에러 발생X
+const arrowExampleFunc = <T extends {}>(arg: T): T[] => {
   return new Array(3).fill(arg);
 };
-
-// No ERR
-function normalExampleFunc<T>(arg: T) {
-  return new Array(3).fill(arg);
-}
 ```
 
 ## 3.3 제네릭 사용법
 
-### 3.3.1 함수의 제네릭
+### 1. 함수의 제네릭
 
-- 함수의 매개변수나 반환 값에 다양한 타입을 넣고 싶을 때 사용
+- 함수의 매개변수나 반환 값에 다양한 타입을 넣고 싶을 때 제네릭을 사용할 수 있다.
+- 아래 예시처럼 T 자리에 넣는 타입에 따라 ReadOnlyRepository가 적절하게 사용될 수 있다.
 
 ```ts
-import { ObjectType, EntitySchema, Repository, getConnection } from 'typeorm';
-
 function ReadOnlyRepository<T>(
   target: ObjectType<T> | EntitySchema<T> | string
-): Repository<T extends any ? any : never> {
-  return getConnection('ro').getRepository(target);
+): Reposity<T> {
+  return getConnection("ro").getRepository(target);
 }
 ```
 
-\*\* [p.109] 안되는 코드 왜케 많죠?
+### 2. 호출 시그니처의 제네릭
 
-### 3.3.2 호출 시그니처의 제네릭
-
-- 함수의 매개변수와 반환 타입을 미리 선언하는 것
-- 제네릭 타입을 어디에 위치 시킬지에 따라 제네릭을 언제 구체 타입으로 한정할지 결정 가능
+- 호출 시그니처는 타입스크립트의 함수 타입 문법으로 함수의 매개변수와 반환 타입을 미리 선언하는 것을 말한다.
+- 함수 호출 시 필요한 타입을 별도로 지정할 수 있게 된다.
 
 ```ts
-interface useSelectPaginationProps<T> {
+interface useSelectPaginationProps<T>{
   categoryAtom: RecoilState<number>;
-  filterAtom: RecoilState<string[]>;
-  sortAtom: RecoilState<SortType>;
-  // 훅 사용시에 제네릭을 받아서, 해당 런타임에 타입 결정
-  fetcherFunc: (
-    props: CommonListRequest
-  ) => Promise<DefaultResponse<ContentListResponse<T>>>;
-}
+  filterAtom: RecoilState<string[]>; sortAtom:
+  RecoilState<SortType>;
+  fetcherFunc: (props: CommonListRequest) => Promise<DefaultResponse<ContentListResponse<T>>>;
 ```
 
-- 배민에서 사용하는 사용자 Hook 타입과 실제 코드
+### 3. 제네릭 클래스
 
-```ts
-// 통신 결과 타입 정의
-type RequestStatus = 'idle' | 'loading' | 'success' | 'error';
-
-// 실제로 요청을 보내는 함수 타입 선언
-type Requester<RequestData, ResponseData> = {
-  sendRequest: (requestData: RequestData) => Promise<ResponseData>;
-  status: RequestStatus;
-};
-
-// 훅 타입을 정의하여 useState 와 같이 [] 로 status 와 리퀘스트 실행 함수를 받을 수 있도록 설정
-export type UseRequesterHookType = <RequestData = void, ResponseData = void>(
-  baseURL?: string | Headers,
-  defaultHeader?: Headers
-) => [RequestStatus, Requester<RequestData, ResponseData>];
-
-// 실제 훅 타입을 적용하여 훅 선언
-const useRequesterHook: UseRequesterHookType = <
-  RequestData = void,
-  ResponseData = void
->(
-  baseURL?: string | Headers,
-  defaultHeader?: Headers
-) => {
-  const [status, setStatus] = useState<RequestStatus>('idle');
-
-  const sendRequest = async (
-    requestData: RequestData
-  ): Promise<ResponseData> => {
-    setStatus('loading');
-    try {
-      // 여기에서 실제 요청을 보냅니다.
-      const responseData = await fetch(baseURL as string, {
-        method: 'POST',
-        headers: defaultHeader,
-        body: JSON.stringify(requestData),
-      });
-      setStatus('success');
-      return responseData.json();
-    } catch (error) {
-      setStatus('error');
-      throw new Error('Request failed');
-    }
-  };
-
-  return [status, { sendRequest, status }];
-};
-
-// 사용 예시
-const [requestStatus, requester] = useRequesterHook<
-  { id: number },
-  { name: string }
->('http://api.example.com', {
-  'Content-Type': 'application/json',
-});
-
-// 요청 보내기
-requester
-  .sendRequest({ id: 123 })
-  .then((response) => console.log('Response:', response))
-  .catch((error) => console.error('Error:', error));
-
-// 상태 확인
-console.log('Request status:', requestStatus);
-```
-
-### 3.3.3 제네릭 클래스
-
-- 외부에서 입력된 타입을 클래스 내부에 적용할 수 있는 클래스
-- 클래스 이름 뒤에 타입 매개변수인 `<T>` 를 선언하여 사용하며, DB 의 데이터 타입에 따라 해당 타입을 전달하여 사용이 가능
+- 외부에서 입력된 타입을 클래스 내부에 적용할 수 있는 클래스이다.
+- 클래스 이름 뒤에 타입 매개변수인 <T>를 선언해준다. LocalDB 클래스는 외부에서 { key: string, value: Promise<Record<string, unknown>>; cacheTTL: number } 타입을 받아들여 클래스 내부에서 사용될 제네릭 타입으로 결정된다.
+- 제네릭 클래스를 사용하면 클래스 전체에 걸쳐 타입 매개변수가 적용된다. 특정 메서드만을 대상으로 제네릭을 적용하려면 해당 메서드를 제네릭 메서드로 선언하면 된다.
 
 ```ts
 class LocalDB<T> {
+  /// 중략
   async put(table: string, row: T): Promise<T> {
     return new Promise<T>((resolved, rejected) => {
-      /* T 타입의 데이터를 DB에 저장 */
+      /* T 타입 데이터를 DB에 저장 */
     });
   }
 
   async get(table: string, key: any): Promise<T> {
     return new Promise<T>((resolved, rejected) => {
-      /* T 타입의 데이터를 DB에서 가져옴 */
+      /* T 타입 데이터를 DB에서 가져옴 */
     });
   }
 
   async getTable(table: string): Promise<T[]> {
     return new Promise<T[]>((resolved, rejected) => {
-      /* T[] 타입의 데이터를 DB에서 가져 옴*/
+      /* T[] 타입 데이터를 DB에서 가져옴 */
     });
+  }
+}
+
+export default class IndexedDB implements ICacheStore {
+  private _DB?: LocalDB<{
+    key: string;
+    value: Promise<Record<string, unknown>>;
+    cacheTTL: number;
+  }>;
+  private DB() {
+    if (!this._DB) {
+      this._DB = new LocalDB("localCache", {
+        ver: 6,
+        table: [{ name: TABLE_NAME, keyPath: "key" }],
+      });
+    }
+    return this._DB;
   }
 }
 ```
 
-### 3.3.4 제한된 제네릭
+### 4. 제한된 제네릭
 
-- 매개변수에 대한 제약 조건을 설정하는 기능
-- 타입 매개변수에 extends 키워드를 사용하여 특정 타입으로 제약 조건을 설정 가능
-- 특정 조건인지를 extends 키워드로 확인하여 3항 연산자로 동적 타입 설정도 가능
+- 타입 매개변수에 대한 제약 조건을 설정하는 기능을 말한다.
+- 예시 : string 타입으로 제약하려면 타입 매개변수는 특정 타입을 상속해야 한다.
 
 ```ts
 type ErrorRecord<Key extends string> = Exclude<Key, ErrorCodeType> extends never
@@ -646,118 +322,121 @@ type ErrorRecord<Key extends string> = Exclude<Key, ErrorCodeType> extends never
   : never;
 ```
 
-- 위의 코드에서 Key 는 특정 타입으로 묶여있으므로 바운드 타입 매개변수라 부르고, 특정 타입인 string 을 상한 한계라고 한다
+- 이처럼 타입 매개변수가 특정 타입으로 묶였을 때 키를 바운드 타입 매개변수라고 부른다. 그리고 string을 키의 상한 한계라고 한다.
+- 상속받을 수 있는 타입으로는 기본 타입뿐만 아니라 상황에 따라 인터페이스나 클래스도 사용할 수 있고, 유니온 타입을 선언할 수도 있다.
+
+#### 제한된 제네릭과 유니온 타입의 차이
+
+- 제네릭 : 클래스의 인스턴스를 생성할 때 지정한 하나의 타입만 가능하다. 작업할 때 하나의 타입을 결정하고 고수해야 한다.
 
 ```ts
-function useSelectPagination<
-  T extends CardListContent | CommonProductResponse
->({
-  filterAtom,
-  sortAtom,
-  fetcherFunc,
-}: useSelectPaginationProps<T>): {
-  intersectionRef: RefObject<HTMLDivElement>;
-  data: T[];
-  categoryId: number;
-  isLoading: boolean;
-  isEmpty: boolean;
-} {
-  // ...
+class DataStorage<T extends string | number | boolean> {
+  private data: T[] = [];
+
+  addItem(item: T) {
+    this.data.push(item);
+  }
+
+  removeItem(item: T) {
+    this.data.splice(this.data.indexOf(item), 1);
+  }
+
+  getItems() {
+    return [...this.data];
+  }
 }
 
-// 사용하는 쪽 코드
-const { intersectionRef, data, isLoading, isEmpty } =
-  useSelectPagination<CardListContent>({
-    categoryAtom: replyCardCategoryIdAtom,
-    filterAtom: replyCardFilterAtom,
-    sortAtom: replyCardSortAtom,
-    fetcherFunc: fetchReplyCardListByThemeGroup,
-  });
+const storage = new DataStorage<string>(); // string 타입만
+storage.addItem("data");
+// storage.addItem(123); // ERROR string 타입 선언했으므로 불가능
 ```
 
-- 제네릭을 받아 동적으로 데이터를 리턴하는 형태의 커스텀 훅에 적용이 가능하다
-
-### 3.3.5 확장된 제네릭
-
-- 제레닉 타입은 여러 타입을 상속 가능하며 매개 변수를 여러개 사용이 가능하다
+- 유니온 : 클래스 전체에 하나의 타입이 아니라 각 변수 및 함수에 지정한 유니온 타입 중 가능하다.
 
 ```ts
-// 타입이 string 으로 제약되어 제네릭의 유연성이 떨어짐
-type ConcreteType<Key extends string> = {
-  data: Key;
-};
+class DataStorage {
+  private data: (string | number | boolean)[] = [];
 
-// 유니온 타입을 상속하여 제네릭의 유연성은 지키면서 타입을 제약하는 방법
-type FlexibleType<Key extends string | number> = {
-  data: Key;
-};
+  addItem(item: string | number | boolean) {
+    this.data.push(item);
+  }
+
+  removeItem(item: string | number | boolean) {
+    this.data.splice(this.data.indexOf(item), 1);
+  }
+
+  getItems() {
+    return [...this.data];
+  }
+}
+
+const storage = new DataStorage(); // string 타입만
+storage.addItem("data");
+storage.addItem(123); // 적혀진 유니온 타입 중 하나이므로 가능
 ```
 
-- 유니온을 이용하면 하나의 제네릭이 여러 타입을 받게 할 수 있지만, 타입 매개변수가 여러개일 경우에는 제네릭을 하나 더 추가하여 선언
+### 5. 확장된 제네릭
 
-### 3.3.6 제네릭 예시
-
-- 제네릭의 장점은 다양한 타입을 받을 수 있어, 코드를 효율적으로 재사용할 수 있다는 점이다
-- 현업에서는 API 응답 값의 타입 지정에 주로 사용된다
+- 제네릭 타입은 여러 타입을 상속받을 수 있으며 타입 매개변수를 여러 개 둘 수 있다.
+- 아래와 같이 타입을 제한하면 유연성을 잃어버린다. 타입을 제약할 때는 유니온 타입으로 상속하여 선언하면 된다.
 
 ```ts
+<Key extends string> // 유연성 잃어버림
+<Key extends string | number>
+```
+
+- 유니온 타입으로 여러 타입을 받을 수 있지만, 타입 매개변수가 여러 개일 때는 처리할 수 없다. 이럴 때는 매개변수를 하나 더 추가해서 선언한다.
+
+### 6. 제네릭 예시
+
+- 제네릭이 협업에서 제일 많이 사용되는 곳은 API 응답 값의 타입을 지정할 때다.
+- 아래 코드를 살펴보면 API 응답 값에 따라 달라지는 data를 제네릭 타입 Data로 선언하고 있다. 이렇게 만든 MobileApiResponse는 실제 API 응답 값의 타입을 지정할 때 사용되고 있다.
+
+```ts
+export interface MobileApiResponse<Data> {
+  data: Data;
+  statusCode: string;
+  statusMsg?: string;
+}
+
 export const fetchPriceInfo = (): Promise<MobileApiResponse<PriceInfo>> => {
-  const priceUrl = 'http://api.price.com';
+  const priceUrl = "https: ~~~"; //url 주소
 
   return request({
-    method: 'GET',
+    method: "GET",
     url: priceUrl,
   });
 };
 
 export const fetchOrderInfo = (): Promise<MobileApiResponse<Order>> => {
-  const orderUrl = 'http://api.order.com';
+  const orderUrl = "https: ~~~"; //url 주소
 
   return request({
-    method: 'GET',
+    method: "GET",
     url: orderUrl,
   });
 };
 ```
 
-- 각기 다른 요청에 다른 응답 데이터를 제너릭을 이용하여 하나의 타입으로 처리
-
 #### 제네릭을 굳이 사용하지 않아도 되는 타입
 
-- 제네릭을 무분별하게 사용하면 코드 길이만 늘어나고 가독성을 해칠 수 있다
+- 제네릭이 필요하지 않을 때도 사용하면 가독성을 해칠 수 있음
+- 아래처럼 GType이 다른 곳에서는 사용되지 않고 getRequirement 함수의 반환 값 타입으로만 사용되고 있다면 굳이 제네릭을 사용하지 않는게 바람직하다.
 
 ```ts
-// 재사용이 없을 코드에 적용한 경우
 type GType<T> = T;
-type RequirementType = 'USE' | 'UN_USE' | 'NON_SELECT';
+type RequirementType = "USE" | "UN_USE" | "NON_SELECT";
 interface Order {
   getRequirement(): GType<RequirementType>;
 }
-
-// 제네릭을 제거한 버전
-type RequirementType = 'USE' | 'UN_USE' | 'NON_SELECT';
-interface Order {
-  getRequirement(): RequirementType;
-}
 ```
 
-#### any 사용하기
-
-- 쓰지 말자
-
-#### 가독성을 고려하지 않은 사용
-
-- 과하게 중첩되어 사용될 경우 가독성을 해치게 되므로, 필요에 따라 의미 단위로 분할하여 적용하는 편이 좋다
+- 아래와 같이 any를 사용하면 제네릭을 포함해 타입을 지정하는 의미가 사라지게 됨으로 any 사용을 권장하지 않는다.
 
 ```ts
-// 과한 중첩이 사용 된 경우
-type ReturnType<Record<OrderType,Partial<Record<CommonOrderStatus | CommonReturnStatus, Partial<Record<OrderRoleType, string[]>>>>>>;
-
-// 적절한 의미 분할이 적용 된 경우
-type CommonStatus = CommonOrderStatus | CommonReturnStatus;
-type PartialOrderRole = Partial<Record<OrderRoleType, string[]>>;
-type RecordCommonOrder = Record<CommonStatus, PartialOrderRole>;
-type RecordOrder = Record<OrderType, Partial<RecordCommonOrder>>;
-
-type ReturnType2<RecordOrder>;
+type ReturnType<T = any> = {
+  // ...
+};
 ```
+
+- 제네릭이 과하게 사용되면 가독성을 해치기 때문에 복잡한 제네릭은 의미 단위로 분할해서 사용하는게 좋다.
