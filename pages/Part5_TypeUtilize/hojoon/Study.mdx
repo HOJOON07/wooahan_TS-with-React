@@ -1,1 +1,58 @@
-## Study
+# 조건부 타입
+
+- 조건에 따라 다른 타입을 반환해야 할 때가 있다.
+- 조건부 타입은 중복되는 타입 코드를 제거하고 상황에 따라 적절한 타입을 얻을 수 있다.
+
+## extends와 제네릭
+
+```ts
+T extends U ? X :Y
+```
+
+### 예시
+
+```ts
+type PayMethod<T> = T extends "card" ? Card : Bank;
+```
+
+- 제네릭 매개변수에 "card"가 들어오면 Card타입, 아니면 Bank 타입으로 결정된다.
+
+## 조건부 타입을 사용하지 않았을 때의 문제점
+
+## infer로 타입추론
+
+> infer는 추론하다라는 의미를 가지고 있다.
+
+- 삼항 연산자를 사용한 조건문의 형태를 가지는데, extends로 조건을 서술하고 infer로 타입을 추론하는 방식을 취한다.
+
+## 템플릿 리터럴 타입 활용
+
+- 자바스크립트의 템플릿 리터럴 문법을 사용해 특정 문자열에 대한 타입을 선언할 수 있는 기능이다.
+- 더욱 읽기 쉬워진다
+
+  > 유니온을 추론하는데 시간이 오래 걸리면 타입을 추론하지 않고 에러를 내뱉을 때가 있는데 적절하게 나누어 타입을 정의하는 것이 좋다.
+
+## 커스텀 유틸리티 타입
+
+### PickOne
+
+> 책에서는 유니온으로 설계된 타입에서 type이라는 속성을 넣어주고 식별 가능한 유니온으로 만들어서 해결했던 경우가 있는데 (p.167) 이 부분을 PickOne이라는 유틸리티 함수를 사용해서 해결하는 방법을 보여줌
+
+```ts
+type PickOne<T> = {
+  [P in keyof T]: Record<P, T[P]> &
+    Partial<Record<Exclude<keyof T, P>, undefined>>;
+}[keyof T];
+```
+
+### NonNullabe
+
+- 제네릭으로 받는 T가 null 또는 undefined일 대 never 또는 T를 반환하는 타입이다. NonNullabe을 사용하면 null이나 undefined가 아닌 경우를 제외할 수 있다.
+
+### Record 원시 타입 키 개선하기
+
+- string을 유닛 타입을 사용해서 유효하지 않은 키를 검사할 수 있다.
+
+```ts
+type PartialRecord<K extends string, T> = Partial<Record<K, T>>;
+```
