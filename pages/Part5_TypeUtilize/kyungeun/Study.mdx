@@ -88,10 +88,10 @@ const theme = {
     }
 };
 
-type ColorType = typeof keyof theme.colors;
+type ColorType = keyof typeof theme.colors;
 
 interface Props {
-  color: ColorType;
+    color: ColorType;
 }
 ```
 
