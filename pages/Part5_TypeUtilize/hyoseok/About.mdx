@@ -1,1 +1,137 @@
-## About
+# 5장. 타입 활용하기
+
+### 5.1.2 조건부 타입을 사용하지 않았을 때의 문제점
+
+```ts
+type PayMethodType = PayMethodInfo<Card> | PayMethodInfo<Bank>;
+
+export const useGetRegisteredList = (
+  type: 'card' | 'appcard' | 'bank'
+): UseQueryResult<PayMethodType[]> => {
+  const url = `baeminpay/codes/${type === 'appcard' ? 'card' : type}`;
+
+  const fetcher = fetcherFactory<PayMethodType[]>({
+    onSuccess: (res) => {
+      const usablePocketList =
+        res?.filter(
+          (pocket: PocketInfo<Card> | PocketInfo<Bank>) =>
+            pocket?.useType === 'USE'
+        ) ?? [];
+      return usablePocketList;
+    },
+  });
+
+  const result = useCommonQuery<PayMethodType[]>(url, undefined, fetcher);
+
+  return result;
+};
+```
+
+- [p.154] 아 설명 진짜...... 걍 코드만 줬으면 더 빨리 이해했을거 같습니다
+- [p.156] `제네릭과 extends를 함께 사용해 제네릭으로 받는 타입을 제한했다. 따라서 개발자는 잘못된 값을 넘길 수없기 때문에 휴먼 에러를 방지할 수 있다.`
+  - 이 부분에 대한 설명이 맞나요? extends 를 적용하기 전에도 `type: 'card' | 'appcard' | 'bank'` 와 같이 매개 변수에 리터럴 유니온 타입을 적용했기 때문에 애초에 잘못된 값을 넘길 여지가 없지 않나요?
+  - 책에서 설명한 두번째 내용인 반환 값을 사용자가 원하는 값으로 구체화하는 건 확실해 보입니다
+- [p.156] 반환타입 이 그림 의미는 뭔가요? 그리고 어떻게 보고 읽어야 하는거죠?
+
+### 5.1.4 infer 를 활용해서 타입 추론하기
+
+- [p.158] 라우팅을 모르는 분이 이걸 보고 있을까 하는 의문이 들면서... 저번에도 말씀 드렸지만 뭔가 이 파트만 나오면 킹받네요 ㅋㅋㅋㅋ
+
+```ts
+type PermissionNames = '기기 정보 관리' | '안전모 인증 관리' | '운행 여부 조회';
+
+type UnpackMenuNames<T extends ReadonlyArray<MenuItem>> =
+  T extends ReadonlyArray<infer U>
+    ? U extends MainMenu
+      ? U['subMenus'] extends infer V
+        ? V extends ReadonlyArray<SubMenu>
+          ? UnpackMenuNames<V>
+          : U['name']
+        : never
+      : U extends SubMenu
+      ? U['name']
+      : never
+    : never;
+
+export type PermissionNames = UnpackMenuNames<typeof menuList>;
+```
+
+- [p.161] 이 코드 뭐죠? Type 에서 재귀가 가능한 거였군요... 그리고 전 남이 이렇게 3항 연산자로 코드 짜오면... 걍 안읽을거 같은데....
+- 메뉴가 중첩 구조로 있는 경우에는 잘 작동하겠지만, 타입을 이렇게 써야하는게 최선일까요?
+
+## 5.3 커스텀 유틸리티 타입 활용하기
+
+### 5.3.1 유틸리티 함수를 활용해 styled-components 의 중복 타입 선언 피하기
+
+- 개인적으로 지금까지 읽은 부분에서 가장 저를 힘들게 했던 파트가 아닌가 싶습니다 + 하소연 주의 ㅋㅋㅋㅋ
+
+- [p.166] 코드 부분
+
+```ts
+type CreditCard = {
+  type: 'card';
+  card: string;
+};
+
+type Account = {
+  type: 'account';
+  account: string;
+};
+
+function withdraw(type: CreditCard | Account) {
+  // Do sth
+}
+
+withdraw({ type: 'card', card: 'hyundai', account: 'hana' }); // account 속성에서 ERR 발생
+```
+
+- 유니온 타입을 사용하면 이렇게 해결이 가능하다 식으로 설명을 잘 하시다가... 커스텀 유틸리티를 적용하면 된다고 하면서
+
+- [p.170] 코드 부분
+
+```ts
+type CreditCard = {
+  card: string;
+};
+
+type Account = {
+  account: string;
+};
+
+type PickOne<T> = {
+  [P in keyof T]: Record<P, T[P]> &
+    Partial<Record<Exclude<keyof T, P>, undefined>>;
+}[keyof T];
+
+// 갑자기 여기 조건은 & 로 변경
+type CardOrAccount = PickOne<CreditCard & Account>;
+
+function withdraw(type: CardOrAccount) {
+  // Do sth
+}
+
+withdraw({ card: 'hyundai' });
+```
+
+- 여기서 갑자기 PickOne 이 적용 되면서 설명도 없이 기존에 있던 타입 전달이 유니온(|) 에서 인터섹션(&) 으로 변합니다...
+- 그렇게 코드를 잘 안본 저는 PickOne 이 어찌 작동하나 궁금해서 온갖 삽질을 다해봐도 결국 PickOne 이 적용된 타입은 never 를 반환하고...
+- 그렇게 온갖 검색과 GPT 등을 활용해서 3시간을 날리고, 결국 타입 전달이 유니온에서 인터섹션으로 변한 것을 알게 되었습니다
+
+- 아래는 GPT 가 PickOne 타입을 추천한 코드인데 개인적으로 해당 코드가 훨 가독성 및 이해가 좋은 코드라고 생각합니다
+
+```ts
+// 합집합으로 모인 타입의 키가 전달 된 타입에 포함이면 해당 속성의 타입으로 반환하고, 포함되지 경우라면 undefined 를 고정으로 가지도록 만드는 타입 구문
+type PickOne2<T> = T extends infer U ? { [K in keyof U]: U[K] } : undefined;
+
+// 비교
+type PickOne<T> = {
+  [P in keyof T]: Record<P, T[P]> &
+    Partial<Record<Exclude<keyof T, P>, undefined>>;
+}[keyof T];
+```
+
+## 5.4 불변 객체 타입으로 활용하기
+
+### 5.4.1 Atom 컴포넌트에서 theme style 객체 활용하기
+
+- [p.178] typeof keyof 순서가 바뀐거는 진짜 이 책에 존재하는 예시 코드가 배민에서 쓰일까? 하는 의문이 들기 시작했습니다
