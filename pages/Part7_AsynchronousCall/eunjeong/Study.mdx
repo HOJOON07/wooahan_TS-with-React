@@ -1,1 +1,483 @@
-## Study
+## 7장. 비동기 호출
+### API 요청
+
+- **fetch로 API 요청하기**
+    - 컴포넌트 내부에 깊숙이 자리 잡은 비동기 호출 코드는 변경 요구에 취약하다.
+- **서비스 레이어로 분리하기**
+    - 비동기 호출 코드는 컴포넌트 영역에서 분리되어 다른 영역(서비스 레이어)에서 처리되어야 한다.
+    - fetch 함수를 분리하는 것만으로는 해결이 어렵다
+    - 쿼리 매개변수, 커스텀 헤더 추가 또는 쿠키를 읽어 토큰을 집어넣는 등을 모두 구현하는 것은 번거로운 일이다.
+- **Axios 활용하기**
+    - fetch의 경우, 많은 기능을 사용하려면 직접 구현해서 사용해야 하기 때문에 Axios 라이브러리를 사용한다.
+- **Axios 인터셉터 사용하기**
+    - 각각의 requester는 서로 다른 역할을 담당하는 다른 서버이기 때문에 request별로 다른 헤더를 설정해줘야 하는 로직이 필요할 수도 있다.
+    - 이때 인터셉터 기능을 사용해 requester에 따라 비동기 호출 내용을 추가해서 처리할 수 있다.
+    - 또한 API 에러를 처리할 때 하나의 에러 객체로 묶어서 처리할 수도 있다.
+    
+    > **Axios 인터셉터 적용과정 (간단버전)**
+    > 
+    > 
+    > ---
+    > 
+    > 1. Axios 인스턴스 생성
+    >     
+    >     ```tsx
+    >     const apiRequester: AxiosInstance = axios.create({
+    >       **baseURL**: "https://api.baemin.com",
+    >       timeout: 5000,
+    >     });
+    >     ```
+    >     
+    > 2. 요청 인터셉터 추가하기
+    >     
+    >     ```tsx
+    >     const setRequestDefaultHeader = (requestConfig: AxiosRequestConfig) => {
+    >       const config = requestConfig;
+    >       config.headers = {
+    >         ...config.headers,
+    >         "Content-Type": "application/json;charset=utf-8",
+    >         user: getUserToken(),
+    >         agent: getAgent(),
+    >       };
+    >       return config;
+    >     };
+    >     
+    >     const setOrderRequestDefaultHeader = ( ... ) => { ... }
+    >     
+    >     // `interceptors` 기능을 사용해 header를 설정하는 기능을 넣거나 에러를 처리할 수 있다
+    >     apiRequester.interceptors.**request.use**(setRequestDefaultHeader);
+    >     
+    >     // 기본 apiRequester와는 다른 header를 설정하는 `interceptors`
+    >     orderApiRequester.interceptors.request.use(setOrderRequestDefaultHeader);
+    >     
+    >     // `interceptors`를 사용해 httpError 같은 API 에러를 처리할 수도 있다
+    >     orderApiRequester.interceptors.response.use(
+    >       (response: AxiosResponse) => response,
+    >       httpErrorHandler
+    >     );
+    >     ```
+    >     
+    > 3. 응답 인터셉터 추가하기
+    >     
+    >     ```tsx
+    >     instance.interceptors.**response.use**(
+    >       (response) => {
+    >         if (response.status === 404) {
+    >           console.log('404 페이지로 넘어가야 함!');
+    >         }
+    >     
+    >         return response;
+    >       },
+    >       async (error) => {
+    >         if (error.response?.status === 401) {
+    >           // isTokenExpired() - 토큰 만료 여부를 확인하는 함수
+    >           // tokenRefresh() - 토큰을 갱신해주는 함수
+    >           if (isTokenExpired()) await tokenRefresh();
+    >     
+    >           const accessToken = getToken();
+    >     
+    >           error.config.headers = {
+    >             'Content-Type': 'application/json',
+    >             Authorization: `Bearer ${accessToken}`,
+    >           };
+    >     
+    >           // 중단된 요청을(에러난 요청)을 토큰 갱신 후 재요청
+    >           const response = await axios.request(error.config);
+    >           return response;
+    >         }
+    >         return Promise.reject(error);
+    >       }
+    >     );
+    >     ```
+    >     
+    - 이와 달리 요청 옵션에 따라 다른 인터셉터를 만들기 위해 빌더 패턴을 추가하여 APIBuilder 같은 클래스 형태로 구성하기도 한다.
+        
+        > **빌더 패턴**
+        > 
+        > 
+        > ---
+        > 
+        > 객체 생성을 더 편리하고 가독성 있게 만들기 위한 디자인 패턴 중 하나.
+        > 
+        > 주로 복잡한 객체의 생성을 단순화하고, 객체 생성 과정을 분리해 객체를 조립하는 방법을 제공한다.
+        > 
+        - 기본 API 클래스로 실제 호출 부분을 구성하고, 위와 같은 API를 호출하기 위한 래퍼를 빌더 패턴으로 만든다.
+        
+        ```tsx
+        import axios, { AxiosPromise } from "axios";
+        
+        // 임시 타이핑
+        export type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE";
+        
+        export type HTTPHeaders = any;
+        
+        export type HTTPParams = unknown;
+        
+        //
+        class API {
+          readonly method: HTTPMethod;
+        
+          readonly url: string;
+        
+          baseURL?: string;
+        
+          headers?: HTTPHeaders;
+        
+          params?: HTTPParams;
+        
+          data?: unknown;
+        
+          timeout?: number;
+        
+          withCredentials?: boolean;
+        
+          constructor(method: HTTPMethod, url: string) {
+            this.method = method;
+            this.url = url;
+          }
+        
+          call<T>(): AxiosPromise<T> {
+            const http = axios.create();
+            // 만약 `withCredential`이 설정된 API라면 아래 같이 인터셉터를 추가하고, 아니라면 인터셉터 를 사용하지 않음
+            if (this.withCredentials) {
+              http.interceptors.response.use(
+                (response) => response,
+                (error) => {
+                  if (error.response && error.response.status === 401) {
+                    /* 에러 처리 진행 */
+                  }
+                  return Promise.reject(error);
+                }
+              );
+            }
+            return http.request({ ...this });
+          }
+        }
+        
+        export default API;
+        ```
+        
+        - APIBuilder
+        
+        ```tsx
+        import API, { HTTPHeaders, HTTPMethod, HTTPParams } from "./7.1.4-2";
+        
+        const apiHost = "";
+        
+        class APIBuilder {
+          private _instance: API;
+        
+          constructor(method: HTTPMethod, url: string, data?: unknown) {
+            this._instance = new API(method, url);
+            this._instance.baseURL = apiHost;
+            this._instance.data = data;
+            this._instance.headers = {
+              "Content-Type": "application/json; charset=utf-8",
+            };
+            this._instance.timeout = 5000;
+            this._instance.withCredentials = false;
+          }
+        
+          static get = (url: string) => new APIBuilder("GET", url);
+        
+          static put = (url: string, data: unknown) => new APIBuilder("PUT", url, data);
+        
+          static post = (url: string, data: unknown) =>
+            new APIBuilder("POST", url, data);
+        
+          static delete = (url: string) => new APIBuilder("DELETE", url);
+        
+          baseURL(value: string): APIBuilder {
+            this._instance.baseURL = value;
+            return this;
+          }
+        
+          headers(value: HTTPHeaders): APIBuilder {
+            this._instance.headers = value;
+            return this;
+          }
+        
+          timeout(value: number): APIBuilder {
+            this._instance.timeout = value;
+            return this;
+          }
+        
+          params(value: HTTPParams): APIBuilder {
+            this._instance.params = value;
+            return this;
+          }
+        
+          data(value: unknown): APIBuilder {
+            this._instance.data = value;
+            return this;
+          }
+        
+          withCredentials(value: boolean): APIBuilder {
+            this._instance.withCredentials = value;
+            return this;
+          }
+        
+          build(): API {
+            return this._instance;
+          }
+        }
+        
+        export default APIBuilder;
+        ```
+        
+        - API Builder 사용 코드
+        
+        ```tsx
+        import APIBuilder from "./7.1.4-3";
+        
+        // ex
+        type Response<T> = { data: T };
+        type JobNameListResponse = string[];
+        
+        const fetchJobNameList = async (name?: string, size?: number) => {
+          const api = APIBuilder.get("/apis/web/jobs")
+            .withCredentials(true) // 이제 401 에러가 나는 경우, 자동으로 에러를 탐지하는 인터셉터를 사용하게 된다
+            .params({ name, size }) // body가 없는 axios 객체도 빌더 패턴으로 쉽게 만들 수 있다
+            .build();
+          const { data } = await api.call<Response<JobNameListResponse>>();
+          return data;
+        };
+        ```
+        
+    - APIBuilder 클래스는 보일러 플레이트가 많다는 단점을 가지고 있다. 하지만 옵션이 다양한 경우에 인터셉터를 설정값에 따라 적용하고, 필요없는 인터셉터를 선택적으로 사용할 수 있다는 장점도 갖고 있다.
+- **API 응답 타입 지정하기**
+    - Response 타입은 apiRequester가 모르게 관리되어야 한다.
+    - 해당 값에 어떤 응답이 들어있는지 알 수 없거나 값의 형식이 달라지더라도 로직에 영향을 주지 않는 경우에는 unknown 타입을 사용하여 알 수 없는 값임을 표현한다.
+- **뷰 모델(View Model) 사용하기**
+    - 뷰 모델을 사용해 API 변경에 따른 범위를 한정해줘야 한다. (→ API 응답이 바뀌어도 UI가 깨지지 않음)
+    - 그러나 뷰 모델 방식에서도 문제가 발생한다(API 20개면,,, 뷰 모델이 20개 이상 추가될 수도 있다는 뜻)
+    - 때문에 API 응답의 변경에 따라 클라이언트 코드를 수정하는 비용을 줄이면서도 도메인의 일관성을 지킬 수 있는 절충안을 찾아야 한다.
+        
+        → 적절한 뷰 모델 사용, 충분한 소통으로 API 응답 변화 최대한 줄이기, 뷰 모델에 필드 추가 대신 getter 함수 추가하기(~> 어떤 값이 뷰 모델에 추가한 값인지 알기 쉽게 함)
+        
+- **Superstruct를 사용해 런타임에서 응답 타임 검증하기**
+    - 인터페이스 정의와 자바스크립트 데이터의 유효성 검사를 쉽게 할 수 있다.
+    - 런타임에서의 데이터 유효성 검사를 통해 개발자와 사용자에게 자세한 런타임 에러를 보여주기 위해 고안되었다.
+    - 데이터의 유효성 검사를 도와주는 모듈
+        
+        > 공통점 : 데이터 정보를 담은 벼수와 데이터 명세를 가진 스키마를 인자로 받아 부합하는지 검사
+        > 
+        
+        > 차이점 : 데이터의 유효성을 다르게 접근하고 반환 값 형태가 다름
+        > 
+        - assert : 유효하지 않은 경우 에러를 던진다.
+        - is : 유효성 검사 결과에 따라 true 또는 false, 즉 boolean 값을 반환한다.
+        - validate : [error, data] 형식의 튜플을 반환한다. 유효하지 않을 때는 에러 값이 반환되고 유효한 경우에는 첫 번째 요소로 undefined, 두 번째 요소로 data value가 반환된다.
+- **실제 API 응답 시의 Superstruct 활용 사례**
+    
+    ```tsx
+    import { assert } from "superstruct";
+    
+    function isListItem(listItems: ListItem[]) {
+      listItems.forEach((listItem) => assert(listItem, ListItem));
+    }
+    ```
+    
+
+### API 상태 관리하기
+
+- **상태 라이브러리에서 호출하기**
+    - Redux는 비동기 상태가 아닌 전역 상태를 위해 만들어진 라이브러리이기 때문에 미들웨어라고 불리는 여러 도구를 도입하여 비동기 상태를 관리한다.
+        
+        → 보일러플레이트 코드가 많아진다. → 관리가 어려움
+        
+    - 모든 상태 관리 라이브러리에서 비동기 처리 함수를 호출하기 위해 액션이 추가될 때마다 관련된 스토어나 상태가 계속 늘어난다.
+        
+        → 전역 상태 관리자가 모든 비동기 상태에 접근하고 변경할 수 있다. 
+        
+        → 의도치 않은 상태 변경 발생 가능성
+        
+- **훅으로 호출하기**
+    - react-query나 useSwr 같은 훅을 사용하는 방법은 상태 변경 라이브러리를 사용한 방식보다 훨씬 간단하다.
+    - 캐시를 사용하여 비동기 함수를 호출하며, 상태 관리 라이브러리에서 발생했던 의도치 않은 상태 변경을 방지하는 데 도움이 된다.
+
+상태 관리 라이브러리는 비동기로 상태를 변경하는 코드가 점점 추가되면 스토어가 점점 커짐 → 상태 변경 액션이 증가하는 것 뿐만 아니라 전역 상태 자체도 복잡해짐
+
+또한 컴포넌트의 결합도와 복잡도가 높아져 유지보수를 어렵게 만든다.
+
+### API 에러 핸들링
+
+- **타입 가드 활용하기**
+    
+    ```tsx
+    function isServerError(error: unknown): error is AxiosError<ErrorResponse> {
+      return axios.isAxiosError(error);
+    }
+    ```
+    
+    > 사용자 정의 타입 가드를 정의할 때는 타입 가드 함수의 반환 타입으로 parameterName is Type 형태의 타입 명제를 정의해주는 것이 좋다.
+    > 
+    > 
+    > 이때 parameterName은 타입 가드 함수의 시그니처에 포함도니 매개변수여야 한다.
+    > 
+- **에러 서브클래싱하기**
+    
+    > **서브클래싱**
+    > 
+    > 
+    > ---
+    > 
+    > 기존(상위 또는 부모) 클래스를 확장하여 새로운(하위 또는 자식) 클래스를 만드는 과정을 말한다.
+    > 
+    > 새로운 클래스는 상위 클래스의 모든 속성과 메서드를 상속받아 사용할 수 있고 추가적인 속성과 메서드를 정의할 수도 있다.
+    > 
+    - 에러를 서브클래싱을 활용하면 에러가 발생했을 때 코드상에서 어떤 에러인지 바로 확인할 수 있다.
+    - 또한 에러 인스턴스가 무엇인지에 따라 에러 처리 방식을 다르게 구현할 수 있다.
+    
+    =>명시적으로 에러 처리를 할 수 있다.
+    
+- **인터셉터를 활용한 에러 처리**
+    - HTTP 에러에 일관된 로직을 적용할 수 있다.
+    
+    ```tsx
+    const httpErrorHandler = (
+      error: AxiosError<ErrorResponse> | Error
+    ): Promise<Error> => {
+      (error) => {
+        // 401 에러인 경우 로그인 페이지로 이동
+        if (error.response && error.response.status === 401) {
+          window.location.href = `${backOfficeAuthHost}/login?targetUrl=${window.location.href}`;
+        }
+        return Promise.reject(error);
+      };
+    };
+    
+    orderApiRequester.interceptors.response.use(
+      (response: AxiosResponse) => response,
+      httpErrorHandler
+    );
+    ```
+    
+- **에러 바운더리를 활용한 에러 처리**
+    - 에러 바운더리 : 리액트 컴포넌트 트리에서 에러가 발생할 때 공통으로 에러를 처리하는 리액트 컴포넌트
+    - 에러 바운더리를 사용하면 리액트 컴포넌트 트리 하위에 있는 컴포넌트에서 발생한 에러를 캐치하고, 해당 에러를 가장 가까운 부모 에러 바운더리에서 처리하게 할 수 있다.
+    - 에러 바운더리는 에러가 발생한 컴포넌트 대신에 에러 처리를 하거나 예상치 못한 에러를 공통 처리할 때 사용할 수 있다.
+- **상태 관리 라이브러리에서의 에러 처리**
+- **react-query를 활용한 에러 처리**
+    - react-query나 swr과 같은 데이터 패칭 라이브러리를 사용하면 요청에 대한 상태를 변환해주기 때문에 요청 상태를 확인하기 쉽다.
+    
+    ```tsx
+    // react-query 사용 예시
+    const JobComponent: React.FC = () => {
+      const { isError, error, isLoading, data } = useFetchJobList();
+      if (isError) {
+        return (
+          <div>{`${error.message}가 발생했습니다. 나중에 다시 시도해주세요.`}</div>
+        );
+      }
+      if (isLoading) {
+        return <div>로딩 중입니다.</div>;
+      }
+      return (
+        <>
+          {data.map((job) => (
+            <JobItem key={job.id} job={job} />
+          ))}
+        </>
+      );
+    };
+    ```
+    
+- **그 밖의 에러 처리**
+    - 일관적으로 에러를 처리하고 싶은 경우 Axios 등의 라이브러리 기능을 활용하면 된다.
+    - 특정 호스트에 대한 API requester를 별도로 선언하고 상태 코드 비교 로직을 인터셉터에 추가할 수 있다.
+
+### API 모킹
+
+가짜 서버(Mock Server)의 경우 모든 예외 사항을 처리하는 것은 쉽지 않고, 매번 테스트를 위해 구현을 반복하는 것은 번거롭다.
+
+이럴 때 모킹(Mocking)이라는 방법을 활용할 수 있다.
+
+모킹은 가짜 모듈을 활용하는 것으로, 앞서 제시한 상황에서 유연하게 대처할 수 있다.
+
+또한 dev 서버가 불안정하거나 AWS 등에 문제가 생겼을 때와 같은 서버 상태에 문제가 발생한 경우에도 서버의 영향을 받지 않고 프론트엔드 개발을 할 수 있다.
+
+이외에도 이슈가 생겼을 때 charles 등의 도구를 활용하면 응답 값을 그대로 복사하여 이슈 발생 상황을 재현하는 데 도움이 된다.
+
+- **JSON 파일 불러오기**
+    - 간단한 조회만 필요한 경우에 사용한다.
+    - 별도의 환경 설정이 필요하지 않아 쉽게 구현할 수 있다.
+    - 사용자의 인터렉션 없이 빠르게 목업을 구축할 때 유용하게 사용할 수 있다.
+    - 그러나 실제 API로 요청하는 것이 아니기 때문에 추후에 요청 경로를 바꿔야 한다.
+- **NextApiHandler 활용하기**
+    - Next.js를 사용하고 있다면 활용할 수 있다.
+    - 단순한 파일을 불러오는 것과 다르게 중간 과정에 응답 처리 로직을 추가할 수 있다.
+    
+    ```tsx
+    // api/mock/brand
+    import { NextApiHandler } from "next";
+    
+    const BRANDS: Brand[] = [
+      {
+        id: 1,
+        label: "배민스토어",
+      },
+      {
+        id: 2,
+        label: "비마트",
+      },
+    ];
+    
+    const handler: NextApiHandler = (req, res) => {
+      // request 유효성 검증
+      res.json(BRANDS);
+    };
+    
+    export default handler;
+    ```
+    
+- **API 요청 핸들러에 분기 추가하기**
+    - 요청 경로를 수정하지 않고 평소에 개발할 때 필요한 경우에만 실제 요청을 보내고 그 외에는 목업을 사용하여 개발하고 싶다면 다음과 같이 처리할 수 있다.
+    - API 요청을 훅 또는 별도 함수로 선언해준 다음 다음 조건에 따라 목업 함수를 내보내거나 실제 요청 함수를 내보낼 수 있다.
+    - 이 방법을 사용하면 개발이 완료된 이후에도 유지보수할 때 목업 함수를 사용할 수 있다.
+    - 그러나 모든 API 요청 함수에 if 분기문을 추가해야 하므로 번거롭게 느껴질 수 있다.
+- **axios-mock-adapter로 모킹하기**
+    - 서비스 함수에 분기문이 추가되는 것을 바라지 않는다면 라이브러리를 사용하면 된다.
+    - axios-mock-adapter는 Axios 요청을 가로채서 요청에 대한 응답 값을 대신 반환한다.
+    - 단순히 응답 바디만 모킹할 수도 있지만 상태 코드, 응답 지연 시간 등을 추가로 설정할 수도 있다.
+    - 또한 GET 뿐만 아니라 POST, PUT, DELETE 등 다른 HTTP 메서드에 대한 목업을 작성할 수 있다.
+- **목업 사용 여부 제어하기**
+    - 플래그를 사용하여 목업으로 개발할 때와 개발하지 않을 때를 구분할 수 있다.
+    - 로컬에서 개발할 때는 주로 목업을 사용하고, dev 서버 환경이 필요할 때는 dev 서버를 바라보도록 설정할 수 있다.
+    - 이는 프론트엔드와 서버를 독립시킬 수 있어 혹여나 dev 서버에 문제가 생기더라도 로컬에서 진행되는 프론트엔드 개발에는 영향을 주지 않는다.
+    - 목업을 사용할 때 네트워크 요청을 확인하고 싶을 때는 네트워크에 보낸 요청을 변경해주는 Cypress 같은 도구의 웹푹을 사용하면 된다.
+    
+    > **Cypress**
+    > 
+    > 
+    > ---
+    > 
+    > 프론트엔드 테스트를 위한 오픈 소스 자바스크립트 엔드 투 엔드 테스트 도구
+    > 
+    > 주로 웹 애플리케이션의 동작을 시뮬레이션하고 테스트하는 데 사용된다
+    > 
+
+> **데이터 패칭 라이브러리를 사용하나요? 어떤 기준으로 선택했나요? 장단점은?**
+> 
+> 
+> ---
+> 
+> - A팀
+>     - 비동기 요청이 많지 않아 데이터 패칭 라이브러리는 사용하지 않음.
+>     - Recoil에서 제공하는 useSelector 사용
+> - B팀
+>     - 데이터의 복잡성이 높지 않아서 react-query 사용. ‘상태 관리’를 하는 목적을 고려했을 때, 상당 부분이 비동기 통신을 위해 쓰이는 것 같다고 생각해 Redux를 버림.
+>     - Redux는 규칙도 알아야하고 불편한 코드가 너무 많아서 번거로웠음.
+>     - react-query는 당시 swr이 지원하지 않던 suspense 모드를 제공하고 있음. 전체적으로 제공하는 기능이 많고 선호도도 높았음
+> - C팀
+>     - react-query 사용.
+>     - 기존의 상태 관리 라이브러리를 사용하여 서버에서 가져온 값을 처리할 때는 추가 작업이 필요했는데, react-query를 사용하면서 이 부분이 편리해짐.
+>     - 코드를 짜면서 신경써야 하는 부분도 줄었다.
+>     - 또한 데이터를 다시 가져오거나(refetch), 캐싱해주는 기능은 강력하다.
+> - D팀
+>     - 데이터 패칭 라이브러리를 사용하는 이유는 서버 데이터를 캐싱해주고 하나의 API를 여러 컴포넌트에서 사용할 때 편리하게 활용할 수 있다는 점 때문이다.
+>     - swr과 달리 react-query는 서버 상태를 변경하는 useMutation 메서드를 제공해주며 자체적으로 isLoading에 대해 처리도 해주어 편하다.
+>     - 이러한 편리함과 다양한 기능 때문에 선호도가 높은 것 같다.
+> - E팀
+>     - 고객 지향 서비스에서는 swr를, 어드민에서는 react-query를 사용한다.
+>     - react-query가 제공하는 API의 인터페이스가 좀 더 직관적이고 러닝 커브가 낮아 사용하기 더 편하다
