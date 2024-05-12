@@ -1,0 +1,56 @@
+1.  put과 patch의 차이
+
+           <table>
+         <thead>
+           <tr>
+             <th>id</th>
+             <th>balance</th>
+             <th>name</th>
+           </tr>
+         </thead>
+         <tbody>
+           {[
+             { id: "1", balance: "100",name:"호준" },
+             { id: "2", balance: "20",name:"경은" },
+             { id: "3", balance: "50",name:"효석" },
+               ].map((item) => (
+                 <tr key={item.id}>
+                   <td>{item.id}</td>
+                   <td>{item.balance}</td>
+                   <td>{item.name}</td>
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+
+문제 1. id는 1 => PUT /customers?id=1
+
+```
+{name : 경은,balance:0}
+{name : 경은}
+
+결과는 ??
+```
+
+문제 2 id는 1 => PATCH /customers?id=1
+
+```
+{name : 경은,balance:0}
+{name : 경은}
+결과는 ??
+```
+
+문제 3 id 인 4에 요청을 보내면 ?? PUT /customers?id=4
+
+```
+{
+  name:"은정",balance:1200
+}
+결과는 ??
+```
+
+2.  네트워크 상태 코드
+    > Redirection(리다이렉션)
+    > 완전한 처리를 위해서 추가 동작이 필요한 경우입니다. 주로 서버의 주소 또는 요청한 URI의 웹 문서가 이동되었으니 그 주소로 다시 시도하라는 의미입니다.
+
+몇번대 일까요??
