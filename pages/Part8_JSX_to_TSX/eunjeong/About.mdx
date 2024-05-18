@@ -1,1 +1,46 @@
-## About
+### 공변성과 반공변성이란
+
+- **공변성**
+    - 함수 리턴값, 일반 변수 등의 타입.
+    - **좁은 타입으로 선언한 변수에 넓은 타입으로 선언한 변수 할당** 가능
+    
+    ```tsx
+    // 1. 좁 ~> 넓
+    const a: {name: string} = {name: 'yesme'};
+                       ⬇️
+    {name: string, age: number} 넣어보기
+                       ⬇️
+    const a: {name: string} = {name: "yesme", age: 365};
+    
+    // 2. 넓 ~> 좁
+    const a: {name: string} = {name: "yesme", age: 365};
+           ⬇️
+    {name: string, age: number} 넣어보기
+           ⬇️
+    error! age 값이 없음
+    ```
+    
+- **반공변성**
+    - 함수의 매개변수, 제네릭으로 선언된 함수.
+    - **넓은 타입으로 선언한 변수에 좁은 타입 변수 할당** 가능
+    
+    ```tsx
+    // 인자로 {name}을 받아, 계산 후 무언가를 반환
+    type NameFun = (value: {name: string}) => unknown;
+    
+    // name과 age를 인자로 받는 함수
+    function userInfo(value: {name: string; age: number}){
+    	return value;
+    }
+    
+    // 이 함수는 NameFun 타입으로 정의할 수 있나?
+    // => 불가능. 
+    // 내가 선언한 함수(nameInfo - 좁은 타입) 인자에 필요한 age 값이 userInfo(넓은 타입)에는 없음
+    const nameInfo: NameFun = userInfo; // ERROR!
+    ```
+    
+- **이변성**
+    - A -> B 일 때 `T<A>` -> `T<B>`도 되고 `T<B>` -> `T<A>`도 되는 경우
+
+> 참고 블로그 : [https://velog.io/@hwangyena/우아한타입스크립트-공변성과-반공변성-완전-이해하기](https://velog.io/@hwangyena/%EC%9A%B0%EC%95%84%ED%95%9C%ED%83%80%EC%9E%85%EC%8A%A4%ED%81%AC%EB%A6%BD%ED%8A%B8-%EA%B3%B5%EB%B3%80%EC%84%B1%EA%B3%BC-%EB%B0%98%EA%B3%B5%EB%B3%80%EC%84%B1-%EC%99%84%EC%A0%84-%EC%9D%B4%ED%95%B4%ED%95%98%EA%B8%B0)
+>
