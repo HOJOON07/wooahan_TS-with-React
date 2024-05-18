@@ -1,1 +1,40 @@
-## Study
+## ReactElement
+
+- type
+- props
+  - className
+  - children
+
+## ReactNode
+
+- ReactChild
+- ReactFragment
+- ReactPortal
+- boolean
+- null
+- undefined
+
+```ts
+interface IconProps {
+  size: number;
+}
+
+interface Props {
+  icon: React.ReactElement<IconProps>;
+}
+
+const Item = ({ icon }: Props) => {
+  const iconsize = icon.props.size;
+};
+
+// 이렇게도 쓸 수 있다.
+```
+
+```ts
+type ReactSelectProps = React.ComponentPropsWithoutRef<"select">;
+
+interface SelectProps<OptionType extends Record<string, string>> {
+  id?: ReactSelectProps["id"];
+  className?: ReactSelectProps["className"];
+}
+```
