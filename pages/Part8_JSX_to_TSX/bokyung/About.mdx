@@ -1,1 +1,51 @@
-## About
+### ComponentPropsWithoutRef
+
+- 디자인시스템 만들기 하면서 `ComponentPropsWithoutRef`를 알게 됐는데 '왜 forwardRef를 사용하는데 해당 타입을 써야할까?' 궁금했었다. '실제로는 동작하지 않는 ref를 받도록 타입이 지정되어 예기치 않은 에러가 발생할 수 있다'는 걸 알게 되었다. 잘 구분해서 사용하는게 좋을 것 같다.
+- 리액트 제공 타입을 잘 활용한 코드인 것 같아서 가져와봤습니다.
+    ```tsx
+    export interface ButtonProps
+    extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'disabled'>, //
+        VariantProps<typeof buttonVariants> { //
+    asChild?: boolean;
+    disabled?: boolean;
+    leftIcon?: React.ReactNode;
+    rightIcon?: React.ReactNode;
+    }
+
+    const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+    (
+        {
+        className,
+        variant = 'solid',
+        buttonType = 'primary',
+        size = 'md',
+        asChild = false,
+        disabled,
+        leftIcon,
+        rightIcon,
+        ...props
+        },
+        ref,
+    ) => {
+        ...
+    }
+    ```
+
+    ```tsx
+    const AccordionItem = React.forwardRef<
+    React.ElementRef<typeof AccordionPrimitive.Item>, //
+    React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item> //
+    >(({ className, ...props }, ref) => (
+    <AccordionPrimitive.Item
+        ref={ref}
+        className={cn("border-b", className)}
+        {...props}
+    />
+    ))
+    AccordionItem.displayName = "AccordionItem"
+    ```
+
+### 리액트의 이벤트 (합성 이벤트)
+[제로초도 강의에서 사용하는거 처음 봄](https://github.com/ZeroCho/next-app-router-z/blob/697ef6842a5830e4a24f5041c77699e60fd20714/ch4/src/app/(afterLogin)/messages/_component/Room.tsx#L29)
+
+### 공변성과 반공변성
