@@ -1,1 +1,487 @@
-## Study
+## 7.1 API 호출
+
+### 1. fetch로 API 요청하기
+- 문제
+    - API URL 변경, 새로운 API 요청 정책 추가시 비동기 호출 코드를 계속 수정해야 하는 번거로움 발생
+- ‘새로운 API 요청 정책’의 예
+    - 여러 서버에 API를 요청할 때 타임아웃 설정이 필요하다
+    - 모든 요청에 커스텀 헤더가 필요하다
+
+### 2. 서비스 레이어로 분리하기
+
+- 해결
+    비동기 호출 코드를 컴포넌트 영역에서 분리해 서비스 레이어에서 처리하기
+    fetch 함수를 호출하는 부분이 서비스 레이어로 이동하고, 컴포넌트는 이를 호출하여 ‘결과’를 받아와 렌더링
+- 문제
+    여전히 다양한 API 정책이 추가에 대한 대응이 번거로움
+- ‘다양한 API 정책’의 예
+    - 쿼리 매개변수나 커스텀 헤더 추가
+    - 쿠키 읽어 토큰 집어넣기
+
+### 3. Axios 활용하기
+
+fetch
+- 내장 라이브러리라서 임포트나 설치가 필요 없음
+- 그러나 많은 기능을 직접 구현해서 사용해야 하는 번거로움
+
+Axios
+- 서버가 분리되어있거나 API Entry(Base URL)이 달라졌을 때 (2개 이상의 API Entry 경우)
+- 각 서버의 기본 URL을 호출하도록 인스턴스를 따로 구성(`orderApiRequester`, `orderCartApiRequester`)해두고, 해당하는 apiRequester를 호출
+
+### 4. Axios 인터셉터 사용하기
+
+- **Requester별로 다른 헤더를 설정**해줘야 하는 로직이 필요하다면
+인터셉터 기능을 사용하여 requester에 따라 비동기 호출 내용을 추가해서 처리할 수 있다.
+- **API 에러를 처리**할 때 하나의 에러 객체로 묶어서 처리할 수도 있다.
+    ```tsx
+    // 1. 기본 apiRequester와는 다른 header를 설정하는 `interceptors`
+    orderApiRequester.interceptors.request.use(setOrderRequestDefaultHeader);
+
+    // 2. `interceptors`를 사용해 httpError 같은 API 에러를 처리할 수도 있다
+    orderApiRequester.interceptors.response.use(
+    (response: AxiosResponse) => response,
+    httpErrorHandler
+    );
+    ```
+- 이와 달리 요청 옵션에 따라 다른 인터셉터를 만들기 위해 
+‘빌더 패턴’을 추가하여 APIBuilder 같은 클래스 형태로 구성하기도 한다.
+
+> 빌더 패턴\
+: 객체 생성을 더 편리하고 가독성 있게 만들기 위한 디자인 패턴 중 하나\
+: 주로 복잡한 객체의 생성을 단순화하고, 객체 생성 과정을 분리하여 객체를 조립하는 방법을 제공함\
+\
+단점 - 보일러플레이트 코드가 많다\
+장점 - 옵션이 다양한 경우에 인터셉터를 설정값에 따라 적용하고,\
+필요 없는 인터셉터를 선택적으로 사용할 수 있다\
+\
+예시 코드 - [7.1.4-2](https://github.com/woowa-typescript/woowahan-typescript-with-react-example-code/blob/main/7장/7.1.4-2.ts) ~ 7.1.4-3
+
+### 5. API 응답 타입 지정하기
+
+같은 서버에서 오는 응답의 형태는 대체로 통일되어있어 하나의 response 타입으로 묶는다.
+
+response 타입을 apiRequester 내에서 처리하면 UPDATE, CREATE같이 응답이 없을 수 있는 API를 처리하기 까다로워진다. 따라서 response 타입은 apiRequester가 모르게 관리되어야 한다.
+
+### 6. 뷰 모델 사용하기
+
+API 응답은 변할 가능성이 크다. 
+
+뷰 모델을 사용하여 API 변경에 따른 범위를 한정해줘야 한다.
+
+ex. 특정 객체 리스트를 조회하여 리스트 각각의 내용과 리스트 전체 길이 등을 보여줘야 하는 화면
+- 뷰 모델 도입 전 코드 [7.1.6-1](https://github.com/woowa-typescript/woowahan-typescript-with-react-example-code/blob/main/7%EC%9E%A5/7.1.6-1.ts) ~ 7.1.6-2
+- 뷰 모델 도입 후 코드 [7.1.6-4](https://github.com/woowa-typescript/woowahan-typescript-with-react-example-code/blob/main/7%EC%9E%A5/7.1.6-4.ts) ~ 
+
+장점
+- API 응답이 바뀌어도 UI가 깨지지 않게 개발할 수 있다.
+- 또한 예시처럼 API 응답에는 없는 totalItemCount 같은 도메인 개념을 넣을 때, 
+백엔드 UI에서 로직을 추가하여 처리할 필요 없이, 간편하게 새로운 필드를 뷰 모델에 추가할 수 있다.
+
+단점
+- 추상화 레이어 추가는 결국 코드를 복잡하게 만듦
+    - JobListItemResponse 타입은 서버에서 지정한 응답 형식이기 때문에, 이를 UI에서 사용하려면 더 많은 타입을 선언해야 함
+- 레이어를 관리하고 개발하는 데 비용이 듦
+    - API 20개 추가 → 20개 응답 추가 → 20개 이상 뷰 모델 추가될 수 있음
+    - API 응답에 없는 새로운 필드를 만들어서 사용할 때, 서버 응답과 클라이언트 실제 사용 도메인이 다르다면 의사소통 문제가 발생할 수 있다.
+
+결론
+- API 응답이 바뀌었을 때는 클라이언트 코드를 수정하는 데 들어가는 비용을 줄이면서도 도메인의 일관성을 지킬 수 있는 절충안 찾기
+    - 꼭 필요한 곳에만 뷰 모델을 부분적으로 만들어서 사용하기
+    - 백엔드와 클라이언트 개발자가 충분히 소통한 다음에 개발하여 API 응답 변화를 최대한 줄이기
+    - 뷰 모델에 필드를 추가하는 대신에 getter 등의 함수를 추가하여 실제 어떤 값이 뷰 모델에 추가한 값인지 알기 쉽게 하기
+
+타입스크립트는 정적 검사 도구로, 런타임에서 발생하는 오류는 찾아낼 수 없다. 런타임에 API 응답의 타입 오류를 방지하려면 Superstruct 같은 라이브러리를 사용하면 된다.
+
+### 7. Superstruct를 사용해 런타임에서 응답 타입 검증하기
+superstruct\
+- 인터페이스 정의와 자바스크립트 데이터의 유효성 검사를 쉽게 할 수 있다.
+- 런타임에서의 데이터 유효성 검사를 통해 개발자와 사용자에게 자세한 런타임 에러를 보여주기 위해 고안됨
+
+Superstruct와 타입스크립트
+- infer 키워드로 타입 선언
+    
+    ```tsx
+    import { Infer, number, object, string } from "superstruct";
+    
+    const User = object({
+      id: number(),
+      email: string(),
+      name: string(),
+    });
+    
+    type User = Infer<typeof User>;
+    ```
+    
+- assert 함수 이용하기
+    
+    ```tsx
+    type User = { id: number; email: string; name: string };
+    
+    import { assert } from "superstruct";
+    
+    function isUser(user: User) {
+      assert(user, User);
+      console.log("적절한 유저입니다.");
+    }
+    ```
+
+- infer 키워드로 타입 선언
+    
+    ```tsx
+    import { Infer, number, object, string } from "superstruct";
+    
+    const User = object({
+      id: number(),
+      email: string(),
+      name: string(),
+    });
+    
+    type User = Infer<typeof User>;
+    ```
+    
+- assert 함수 이용하기
+    
+    ```tsx
+    type User = { id: number; email: string; name: string };
+    
+    import { assert } from "superstruct";
+    
+    function isUser(user: User) {
+      assert(user, User);
+      console.log("적절한 유저입니다.");
+    }
+    ```
+    
+
+### 8. 실제 API 응답 시의 Superstruct 활용 사례
+
+런타임에서 확인 가능
+
+```tsx
+import { assert } from "superstruct";
+
+function isListItem(listItems: ListItem[]) {
+  listItems.forEach((listItem) => assert(listItem, ListItem));
+}
+```
+
+## 7.2 API 상태 관리하기
+
+### 1. 상태 관리 라이브러리에서 호출하기
+
+상태 관리 라이브러리의 비동기 함수들은 서비스 코드를 사용해서 비동기 상태를 변화시킬 수 있는 함수를 제공한다.
+
+컴포넌트는 이런 함수를 사용하여 상태를 구독하며, 상태가 변경될 때 컴포넌트를 다시 렌더링 하는 방식으로 동작한다.
+
+#### React-Redux
+
+- Redux는 비동기 상태가 아닌, 전역 상태를 위해 만들어진 라이브러리\
+미들웨어라고 불리는 여러 도구를 도입하여 비동기 상태를 관리함\
+보일러플레이트 코드가 많아지는 등 비동기 상태 관리하기 어려운 상황 발생함
+
+#### MobX
+
+MobX 같은 라이브러리는 이러한 불편함 개선
+- 비동기 콜백 함수를 분리하여 액션을 만듦
+- runInAction과 같은 메서드를 사용하여 상태 변경 처리
+- async/await나 flow 같은 비동기 상태 관리를 위한 기능도 있어 간편함
+
+→ 액션이 추가될 때마다 관련된 스토어나 상태가 계속 늘어난다 → 전역 상태 관리자가 모든 비동기 상태에 접근하고 변경할 수 있다는 문제
+
+### 2. 훅으로 호출하기
+
+react-query나 useSwr 같은 훅을 사용하면 상태 변경 라이브러리를 사용한 방식보다 훨씬 간단하다
+
+- 캐시를 사용하여 비동기 함수를 호출
+- 의도치 않은 상태 변경을 방지하는 데 도움이 됨
+
+#### react-query
+- onSuccess 옵션의 invalidateQueries를 사용하여 특정 키의 API를 유효하지 않은 상태로 설정\
+이후 컴포넌트에서는 일반적인 훅을 호출하는 것처럼 사용
+- 반드시 최신 상태를 표현하려면, 폴링(poling)이나 웹소켓(websocker) 등의 방법을 사용해야 함
+
+## 7.3 API 에러 핸들링
+
+- 서버 에러
+    - 401 - 인증되지 않은 사용자
+    - 404 - 존재하지 않는 리소스
+    - 500 - 서버 내부 에러
+- CORS 에러
+
+### 1. 타입 가드 활용하기
+
+Axios 라이브러리는 Axios 에러에 대해 `isAxiosError`라는 타입 가드를 제공함
+여기에 ‘서버 에러임’을 명확하게 표시하고, 서버에서 내려주는 에러 응답 객체에 대해서 구체적으로 정의하자
+
+➡️ 타입 가드로 서버 에러를 명시적으로 확인할 수 있다.
+
+### 2. 에러 서브클래싱하기
+
+- 인증 정보 에러
+- 네트워크 에러
+- 타임 아웃 에러
+
+> 서브클래싱\
+: 기존 클래스를 확장하여 새로운 클래스를 만드는 과정\
+: 새로운 클래스는 상위 클래스의 모든 속성과 메서드를 상속받아 사용할 수 있고, 추가적인 속성과 메서드를 정의할 수도 있음
+
+➡️ 서브클래싱으로 에러가 발생했을 때 코드상에서 어떤 에러인지 바로 확인할 수 있다. 
+또한 에러 인스턴스가 무엇인지에 따라 에러 처리 방식을 다르게 구현할 수 있다.
+
+### 4. 에러 바운더리를 활용한 에러 처리
+
+[ErrorBoundary 코드]()
+    
+### 5. 상태 관리 라이브러리에서의 에러 처리
+
+### 6. react-query를 활용한 에러 처리
+
+### 7. 그 밖의 에러 처리
+
+유효성 검증에 의해 추가된 커스텀 에러는 ‘200 응답’과 함께 ’응답 바디’에 별도의 상태 코드를 전달하기도 한다.
+
+## 7.4 API 모킹
+
+Mock Server(가짜 서버)를 제공한다고 해도, FE 개발 과정에서 발생할 수 있는 모든 예외 사항을 처리하는 것은 쉽지 않다. 매번 테스트를 위해 구현을 반복해야 하기 때문에 번거로울 수 있다
+
+이때 Mocking(가짜 모듈)을 활용할 수 있다. 
+
+`axios-mock-adapter` `NextApiHandler`
+
+### 1. JSON 파일 불러오기
+
+간단한 조회
+
+- *.json 파일
+- js파일안에 json 형식으로 정보를 저장하고 export
+    
+    ```tsx
+    // mock/service.ts
+    const SERVICES: Service[] = [
+      {
+        id: 0,
+        name: "배달의민족",
+      },
+      {
+        id: 1,
+        name: "만화경",
+      },
+    ];
+    
+    export default SERVICES;
+    ```
+    
+    ```tsx
+    // api.ts
+    const getServices = ApiRequester.get("/mock/service.ts");
+    ```
+    
+
+장점 - 환경 설정 필요없어 쉽게 구현, 초기 단계에서 사용자 인터랙션없이 빠르게 목업 구축할 때 유용
+
+단점 - 실제 API URL로 요청하는 것이 아니기 때문에 추후에 요청 경로를 바꿔야 함
+
+### 2. `NextApiHandler` 활용하기
+
+- NextApiHandler는 하나의 파일 안에 하나의 핸들러를 default export로 구현해야 하고, 
+파일의 경로가 요청 경로가 됨
+    
+    ```tsx
+    // api/mock/brand
+    import { NextApiHandler } from "next";
+    
+    const BRANDS: Brand[] = [
+      {
+        id: 1,
+        label: "배민스토어",
+      },
+      {
+        id: 2,
+        label: "비마트",
+      },
+    ];
+    
+    const handler: NextApiHandler = (req, res) => {
+      // request 유효성 검증
+      res.json(BRANDS);
+    };
+    
+    export default handler;
+    ```
+    
+
+### 3. API 요청 핸들러에 분기 추가하기
+
+- 요청 경로를 수정하지 않고, 평소에 개발할 때 필요한 경우에만 실제 요청 보내고, 그 외는 목업 사용하기
+    
+    ```tsx
+    const mockFetchBrands = (): Promise<FetchBrandsResponse> =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            status: "SUCCESS",
+            message: null,
+            data: [
+              {
+                id: 1,
+                label: "배민스토어",
+              },
+              {
+                id: 2,
+                label: "비마트",
+              },
+            ],
+          });
+        }, 500);
+      });
+    ```
+    
+    ```tsx
+    const fetchBrands = () => {
+      if (useMock) {
+        return mockFetchBrands();
+      }
+    
+      return requester.get("/brands");
+    };
+    ```
+    
+
+→ 모든 API 요청 함수에 if 분기문을 추가해야 하므로 번거롭다
+
+### 4. `axios-mock-adapter`로 모킹하기
+
+라이브러리 사용하기
+
+axios-mock-adapter는 Axios 요청을 가로채서 **요청에 대한 응답 값을 대신 반환**함
+
+1. MockAdapter 객체 생성
+2. 해당 객체를 사용해 모킹
+
+앞 두가지 방법과 달리, mock API 주소가 필요하지 않음 
+
+- 기본 코드
+    ```tsx
+    // fetchOrderListSuccessResponse.json
+    {
+        "data": [
+            {
+                "orderNo": "ORDER1234", "orderDate": "2022-02-02", "shop": {
+                "shopNo": "SHOP1234",
+                "name": "가게이름1234" },
+                "deliveryStatus": "DELIVERY"
+            },
+        ]
+    }
+    ```
+    
+    ```tsx
+    // mock/index.ts
+    import axios from "axios";
+    import MockAdapter from "axios-mock-adapter";
+    import fetchOrderListSuccessResponse from "fetchOrderListSuccessResponse.json";
+    
+    interface MockResult {
+      status?: number;
+      delay?: number;
+      use?: boolean;
+    }
+    
+    const mock = new MockAdapter(axios, { onNoMatch: "passthrough" });
+    
+    export const fetchOrderListMock = () =>
+      mock.onGet(/\/order\/list/).reply(200, fetchOrderListSuccessResponse);
+    ```
+    
+
+응답 바디 모킹뿐만 아니라 상태 코드, 응답 지연 시간 등 추가 설정도 가능함
+
+- 지연 시간(lazyData) 추가 코드
+    ```tsx
+    export const lazyData = (
+      status: number = Math.floor(Math.random() * 10) > 0 ? 200 : 200,
+      successData: unknown = defaultSuccessData,
+      failData: unknown = defaultFailData,
+      time = Math.floor(Math.random() * 1000)
+    ): Promise<any> =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve([status, status === 200 ? successData : failData]);
+        }, time);
+      });
+    
+    export const fetchOrderListMock = ({
+      status = 200,
+      time = 100,
+      use = true,
+    }: MockResult) =>
+      use &&
+      mock
+        .onGet(/\/order\/list/)
+        .reply(() =>
+          lazyData(status, fetchOrderListSuccessResponse, undefined, time)
+        );
+    ```
+    
+
+GET뿐만 아니라 POST, PUT, DELETE 등 HTTP 메서드에 대한 목업 작성 가능
+
+networkError, timeoutError 등 메서드도 제공
+
+- 임의 에러 발생 코드
+    ```tsx
+    export const fetchOrderListMock = () => mock.onPost(/\/order\/list/).networkError();
+    ```
+
+### 5. 목업 사용 여부 제어하기
+
+- 로컬에서는 목업 사용, dev나 운영 환경에서는 안사용 → 플래그 변수 만들기
+    ```tsx
+    const useMock = Object.is(REACT_APP_MOCK, "true");
+    
+    const mockFn = ({ status = 200, time = 100, use = true }: MockResult) =>
+      use &&
+      mock.onGet(/\/order\/list/).reply(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => {
+              resolve([
+                status,
+                status === 200 ? fetchOrderListSuccessResponse : undefined,
+              ]);
+            }, time)
+          )
+      );
+    
+    if (useMock) {
+      mockFn({ status: 200, time: 100, use: true });
+    }
+    ```
+    
+- 스크립트 실행 시 구분 지으려면 package.json
+    
+    ```tsx
+    // package.json
+    {
+      "scripts": {
+        "start:mock": "REACT_APP_MOCK=true npm run start",
+        "start": "REACT_APP_MOCK=false npm run start"
+      }
+    }
+    ```
+    
+config 파일을 별도로 구성하거나 proxy를 사용할 수 있다.
+
+- axios-mock-adapter 사용시 ‘API 요청 흐름’을 파악하고 싶다면\
+`react-query-devtools` 혹은 `redux test tool` 와 같은 별도의 도구 사용해야 함
+- 목업을 사용할 때 네트워크 요청을 확인하고 싶을 때는\ 
+네트워크에 보낸 요청을 변경해주는 `Cypress` 같은 웹훅을 사용
+    
+
+그 외 
+
+- 서비스워커를 활용하는 라이브러리 MSW
+    - 모킹 시 개발 환경과 운영 환경을 분리할 수 있음
+    - 개발자 도구의 네트워크 탭에서 API 통신을 확인할 수 있음
+
+우형의 데이터 페칭 라이브러리 이야기
