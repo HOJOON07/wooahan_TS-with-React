@@ -1,1 +1,122 @@
-## Study
+# 7장 비동기 호출
+
+## 책 Axios 인터셉터 사용 부분
+
+```ts
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+
+const getUserToken = () => "";
+const getAgent = () => "";
+const getOrderClientToken = () => "";
+const orderApiBaseUrl = "";
+const orderCartApiBaseUrl = "";
+const defaultConfig = {};
+const httpErrorHandler = () => {};
+
+const apiRequester: AxiosInstance = axios.create({
+  baseURL: "https://api.baemin.com",
+  timeout: 5000,
+});
+
+const setRequestDefaultHeader = (requestConfig: AxiosRequestConfig) => {
+  const config = requestConfig;
+  config.headers = {
+    ...config.headers,
+    "Content-Type": "application/json;charset=utf-8",
+    user: getUserToken(),
+    agent: getAgent(),
+  };
+  return config;
+};
+
+const setOrderRequestDefaultHeader = (requestConfig: AxiosRequestConfig) => {
+  const config = requestConfig;
+  config.headers = {
+    ...config.headers,
+    "Content-Type": "application/json;charset=utf-8",
+    "order-client": getOrderClientToken(),
+  };
+  return config;
+};
+
+// `interceptors` 기능을 사용해 header를 설정하는 기능을 넣거나 에러를 처리할 수 있다
+apiRequester.interceptors.request.use(setRequestDefaultHeader);
+const orderApiRequester: AxiosInstance = axios.create({
+  baseURL: orderApiBaseUrl,
+  ...defaultConfig,
+});
+// 기본 apiRequester와는 다른 header를 설정하는 `interceptors`
+orderApiRequester.interceptors.request.use(setOrderRequestDefaultHeader);
+// `interceptors`를 사용해 httpError 같은 API 에러를 처리할 수도 있다
+orderApiRequester.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  httpErrorHandler
+);
+const orderCartApiRequester: AxiosInstance = axios.create({
+  baseURL: orderCartApiBaseUrl,
+  ...defaultConfig,
+});
+orderCartApiRequester.interceptors.request.use(setRequestDefaultHeader);
+```
+
+## axios 공식문서 인터셉터
+
+### then 또는 catch로 처리되기 전에 요청과 응답을 가로챌수 있습니다.
+
+```js
+// 요청 인터셉터 추가하기
+axios.interceptors.request.use(
+  function (config) {
+    // 요청이 전달되기 전에 작업 수행
+    return config;
+  },
+  function (error) {
+    // 요청 오류가 있는 작업 수행
+    return Promise.reject(error);
+  }
+);
+
+// 응답 인터셉터 추가하기
+axios.interceptors.response.use(
+  function (response) {
+    // 2xx 범위에 있는 상태 코드는 이 함수를 트리거 합니다.
+    // 응답 데이터가 있는 작업 수행
+    return response;
+  },
+  function (error) {
+    // 2xx 외의 범위에 있는 상태 코드는 이 함수를 트리거 합니다.
+    // 응답 오류가 있는 작업 수행
+    return Promise.reject(error);
+  }
+);
+```
+
+### 나중에 필요할때 인터셉터를 제거할 수 있습니다.
+
+```js
+const myInterceptor = axios.interceptors.request.use(function () {
+  /*...*/
+});
+axios.interceptors.request.eject(myInterceptor);
+```
+
+### 커스텀 인스턴스에서도 인터셉터를 추가할 수 있습니다.
+
+```js
+const instance = axios.create();
+instance.interceptors.request.use(function () {
+  /* ... */
+});
+```
+
+### 빌더 패턴 ?
+
+> 객체의 표현과 생성과정을 분리하는 디자인 패턴
+
+### 인터셉터를 빌더 패턴으로
+
+1. API 클래스에서 withCredential이 있다면 interceptors를 사용함
+2. APIBuilder에서 withCredential의 default는 false
+3. APIBuilder를 사용하는 곳에서 withCredential을 true로 준다면 axios의 interceptors를 사용함
+4. API 클래스 axios interceptors 응답과 관련한 동작
+   > error 응답과 상태코드가 401일때 에러처리를 진행함.

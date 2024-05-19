@@ -1,1 +1,36 @@
-## Study
+## useEffect
+
+```tsx
+// XXX
+const Label: React.FC<LabelProps> = ({ value }) => {
+  useEffect(() => {}, [value]);
+
+  //....
+};
+// 이렇게 써야 한다.
+const { id, name } = value;
+
+useEffect(() => {}, [id, name]);
+```
+
+## useImperativeHandle
+
+- ForwardRefRenderFunction과 함께 쓸 수 있는 훅이다.
+
+## 커스텀 훅
+
+1. useInput
+
+```ts
+const useInput = (initialValue) => {
+  const [value, setValue] = useState(initialValue);
+
+  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+  };
+
+  return { value, onChange };
+};
+
+export default useInput;
+```
