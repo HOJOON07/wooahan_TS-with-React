@@ -1,1 +1,90 @@
-## Study
+## 9.1 리액트 훅
+
+### 1. useState
+
+### 2. 의존성 배열을 사용하는 훅
+
+#### `useEffect`
+
+레이아웃 배치와 화면 렌더링이 모두 완료된 후에 실행
+
+```tsx
+function useEffect(effect: EffectCallback, deps?: DependencyList): void;
+type DependencyList = ReadonlyArray<any>;
+type EffectCallback = () => void | Destructor;
+```
+
+EffectCallback에서 Promise 타입은 반환하지 않으므로 콜백함수에 비동기 함수가 들어갈 수 없다. 비동기 함수를 호출할 수 있다면 경쟁 상태를 불러일으킬 수 있다.
+
+> 경쟁 상태\
+: 멀티스레딩 환경에서 동시에 여러 프로세스나 스레드가 공유된 자원에 접근하려고 할 때 발생할 수 있는 문제
+: 실행 순서나 타이밍을 예측할 수 없게 되어 프로그램 동작이 원하지 않는 방향으로 흐를 수 있다
+
+
+- Destructor(클린업함수)
+    - 빈 배열이면 컴포넌트가 마운트 해제될 때 실행하는 함수
+    - 빈 배열이 아니라면 배열의 값이 변경될 때마다 실행
+
+#### `useLayoutEffect`
+
+화면에 컴포넌트가 그려지기(페인팅) 전에 콜백 함수를 실행
+
+#### `useMemo`
+
+#### `useCallback`
+
+### 3. useRef
+
+DOM을 직접 선택해야 하는 경우에 사용
+
+- 인풋 요소에 포커스 설정
+- 특정 컴포넌트 위치로 스크롤
+
+useRef는 **세 종류의 타입 정의**를 가지고 있음
+
+→ useRef에 넣어주는 인자 타입에 따라 반환되는 타입(`MutableRefObject` 또는 `RefObject`)이 달라짐
+
+```tsx
+function useRef<T>(initialValue: T): MutableRefObject<T>; // 1.
+function useRef<T>(initialValue: T | null): RefObject<T>; // 2.
+function useRef<T = undefined>(): MutableRefObject<T | undefined>; // 3.
+
+interface MutableRefObject<T> {
+  current: T;
+}
+
+interface RefObject<T> {
+  readonly current: T | null;
+}
+```
+
+#### `MutableRefObject`
+
+MutableRefObject의 current는 값을 변경할 수 있다.
+
+만약 null을 허용하기 위해 `const ref = useRef<HTMLInputElement | null>(null);` 로 지정하면 첫 번째 타입 정의를 따르고, ?? MutableRefObject의 current는 변경할 수 있는 값이 되어 ref.current의 값이 바뀌는 사이드 이펙트가 발생할 수 있다.
+
+#### `RefObject`
+
+RefObject의 current는 값을 변경할 수 없다. (readonly)
+
+`const ref = useRef<HTMLInputElement>(null);` 로 지정하면 두 번째 타입 정의를 따르게 된다. 이러면 RefObject를 반환하여 ref.current 값을 임의로 변경할 수 없게 된다.
+
+### 자식 컴포넌트에 ref 전달하기
+
+ForwardedRef에는 `MutableRefObject`만 들어올 수 있다.
+
+부모 컴포넌트에서 ref를 어떻게 선언했는지와 관계없이 자식 컴포넌트가 해당 ref를 수용할 수 있다.
+
+### useImperativeHandle
+
+ForwardRefRenderFunction과 함께 쓸 수 있는 훅
+부모 컴포넌트에서 ref를 통해 자식 컴포넌트에서 정의한 커스터마이징된 메서드를 호출할 수 있다.
+자식 컴포넌트는 내부 상태나 로직을 관리하면서, 부모 컴포넌트와의 결합도도 낮출 수 있다.
+
+### useRef의 여러 가지 특성
+- 값이 바뀌어도 컴포넌트의 리렌더링이 발생하지 않는다. 상태가 변경되더라도 불필요한 리렌더링을 피할 수 있다.
+- 값을 설정한 후 즉시 조회할 수 있다. \
+(리액트 컴포넌트의 상태는 상태 변경 함수를 호출하고 렌더링된 이후에 업데이트한 상태를 조회할 수 있다.)
+
+## 9.2 커스텀 훅
