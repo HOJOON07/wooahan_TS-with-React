@@ -1,1 +1,13 @@
-## Study
+## 앰비언트 타입 활용하기
+
+- d.ts 확장자를 가진 파일에서 하는 타입 선언을 앰비언트 타입 선언이라고 한다.
+- @types/module
+- declare global
+
+```ts
+declare global {
+  interface Window {
+    ~~
+  }
+}
+```
